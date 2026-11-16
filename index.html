@@ -417,6 +417,7 @@ body.desk .ed{-webkit-user-select:text}
       </div>
       <div class="row"><div class="lbl">Time lock<small>After a sprint ends, writing pauses for a while. Critiques stay open.</small></div><button class="sw" role="switch" id="swTime" aria-checked="false" aria-label="Time lock"></button></div>
       <div class="loopline" id="timeOpts" hidden>For <input class="num" id="timeMin" type="number" inputmode="numeric" min="1" max="360"> min after each sprint</div>
+      <div class="row" id="autoRow" hidden style="border-top:0;padding-top:0"><div class="lbl">Then restart the sprint<small>When the time lock runs out, the next sprint starts by itself. Unlocking early doesn't start one.</small></div><button class="sw" role="switch" id="swAuto" aria-checked="false" aria-label="Restart the sprint after the time lock"></button></div>
     </div>
   </div>
 </div>
@@ -480,7 +481,7 @@ body.desk .ed{-webkit-user-select:text}
 "use strict";
 /* ======================= storage ======================= */
 const KEY="folio.v1", DOCKEY="folio.doc.";
-const DEF_SETTINGS={minutes:25,editLock:false,mode:"always",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0};
+const DEF_SETTINGS={minutes:25,editLock:false,mode:"always",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0,autoRestart:false};
 function fresh(){return {docs:[],critiques:[],sprints:[],settings:{...DEF_SETTINGS},sprint:null,timeLockUntil:0,pts:0}}
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.docs){d.settings={...DEF_SETTINGS,...d.settings};return {...fresh(),...d}}}catch(e){}return fresh()})();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save: storage is full")}}
@@ -760,7 +761,7 @@ function loopTick(reset){if(reset){loopStart=now();loopWasLocked=null}
 
 /* ======================= time lock ======================= */
 const timeLocked=()=>S.timeLockUntil>now();
-function startTimeLock(){if(!S.settings.timeLock)return;S.timeLockUntil=now()+S.settings.timeLockMin*60000;save();ed.blur();paintAll()}
+function startTimeLock(docId){if(!S.settings.timeLock)return;S.lockDoc=docId||null;S.timeLockUntil=now()+S.settings.timeLockMin*60000;save();ed.blur();paintAll()}
 function endTimeLock(msg){S.timeLockUntil=0;save();paintAll();if(msg){chime();toast(msg)}}
 // hold for 3 seconds to break the lock early
 (()=>{const h=$("#hold"),f=$("#holdFill");let raf=0,t0=0,lastQ=-1;
@@ -780,7 +781,7 @@ function finishSprint(natural){const sp=S.sprint;if(!sp)return;flush();
   S.sprint=null;save();
   if(natural){bell();hap()}else thud();
   const g=wEnd-sp.wordsStart;toast((natural?"Sprint done":"Sprint ended")+" · "+(g>=0?"+":"")+g.toLocaleString()+" words");
-  startTimeLock();paintAll();refreshWords();if(!$("#shelf").hidden)renderShelf()}
+  startTimeLock(sp.docId);paintAll();refreshWords();if(!$("#shelf").hidden)renderShelf()}
 $("#startBtn").onclick=startSprint;
 $("#endBtn").onclick=()=>{const b=$("#endBtn");if(b.dataset.sure){delete b.dataset.sure;b.textContent="End sprint";hideSheet();finishSprint(false)}else{b.dataset.sure=1;b.textContent="Tap to confirm";hap();setTimeout(()=>{delete b.dataset.sure;b.textContent="End sprint"},2500)}};
 $("#plus5").onclick=()=>{if(!S.sprint)return;S.sprint.endsAt+=5*60000;S.sprint.minutes+=5;save();tick();hap();paintAll()};
@@ -826,9 +827,10 @@ function paintSprintSheet(){const st=S.settings,run=!!S.sprint;
   dialVal=st.minutes;paintDial();
   sw($("#swEdit"),st.editLock,v=>{st.editLock=v;save();loopTick(true);paintLocks();paintAll()});
   sw($("#swTime"),st.timeLock,v=>{st.timeLock=v;save();paintLocks()});
+  sw($("#swAuto"),st.autoRestart,v=>{st.autoRestart=v;save();toast(v?"Sprints restart after each time lock":"Sprints won't restart on their own")});
   $("#loopLock").value=st.loopLock;$("#ptsMax").value=st.ptsMax;paintPts();$("#loopFree").value=st.loopFree;$("#timeMin").value=st.timeLockMin;
   paintLocks();requestAnimationFrame(()=>seg($("#modeSeg"),st.mode,v=>{st.mode=v;save();loopTick(true);paintLocks();paintAll()}))}
-function paintLocks(){const st=S.settings;$("#editOpts").hidden=!st.editLock;$("#loopLine").hidden=st.mode!=="loop";$("#timeOpts").hidden=!st.timeLock;if($("#modeSeg")._paint&&st.editLock)requestAnimationFrame(()=>$("#modeSeg")._paint(st.mode))}
+function paintLocks(){const st=S.settings;$("#editOpts").hidden=!st.editLock;$("#loopLine").hidden=st.mode!=="loop";$("#timeOpts").hidden=!st.timeLock;$("#autoRow").hidden=!st.timeLock;if($("#modeSeg")._paint&&st.editLock)requestAnimationFrame(()=>$("#modeSeg")._paint(st.mode))}
 const numIn=(el,key,lo,hi,after)=>el.addEventListener("change",()=>{const v=Math.max(lo,Math.min(hi,Math.round(+el.value)||lo));el.value=v;S.settings[key]=v;save();tick();after&&after()});
 numIn($("#loopLock"),"loopLock",1,240,()=>loopTick(true));numIn($("#ptsMax"),"ptsMax",0,9999,()=>{S.pts=Math.min(S.pts,S.settings.ptsMax);save();paintPts()});numIn($("#loopFree"),"loopFree",1,240,()=>loopTick(true));numIn($("#timeMin"),"timeLockMin",1,360);
 document.querySelectorAll(".num").forEach(n=>n.addEventListener("keydown",e=>{if(e.key==="Enter")n.blur()}));
@@ -889,7 +891,11 @@ function paintAll(){
 }
 function loop(){
   if(S.sprint&&now()>=S.sprint.endsAt)finishSprint(true);
-  if(S.timeLockUntil&&!timeLocked())endTimeLock("Time lock over. Back to it.");
+  if(S.timeLockUntil&&!timeLocked()){
+    // auto-restart, but not if Folio was closed long after the lock ran out
+    const fresh=now()-S.timeLockUntil<120000,doc=S.lockDoc&&S.docs.find(x=>x.id===S.lockDoc);
+    if(S.settings.autoRestart&&fresh&&doc&&!S.sprint){endTimeLock();if(!cur||cur.id!==doc.id){flush();openDoc(doc.id)}startSprint();toast(`Next sprint: ${S.settings.minutes} min. Go.`)}
+    else endTimeLock("Time lock over. Back to it.")}
   loopTick(false);
   if(!$("#editor").hidden)paintAll();else if(S.sprint)paintRunning();
 }
