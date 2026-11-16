@@ -277,7 +277,19 @@ svg{display:block}
 .stat{background:var(--paper);border-radius:18px;padding:14px 16px;box-shadow:0 1px 0 var(--line)}
 .stat b{display:block;font:300 30px/1.1 var(--ui);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .stat small{color:var(--muted);font-weight:550;font-size:12.5px}
-@media (min-width:700px){.page{padding:56px 64px 60vh}.dock{left:50%;right:auto;width:560px;transform:translateX(-50%)}}
+/* Windows app: the top bars are the window's title bar; Windows draws its buttons at the top right */
+body.desk .top,body.desk .shelf-head{-webkit-app-region:drag;padding-right:150px}
+body.desk .top{padding-top:4px;padding-bottom:4px;min-height:48px}
+body.desk .shelf-head{padding-top:30px}
+body.desk .top>*,body.desk .shelf-head>*{-webkit-app-region:no-drag}
+body.desk .top .title{max-width:520px;margin:0 auto}
+body.desk .icon:hover,body.desk .pill:hover{background:var(--field)}
+body.desk .chip:hover,body.desk .btn:hover{filter:brightness(1.03)}
+body.desk .card .open:hover h3{color:var(--gold)}
+body.desk .scroll{padding-top:10px}
+body.desk .ed{-webkit-user-select:text}
+#share.dirty::after{content:"";position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--gold-fill)}
+@media (min-width:700px){.cards,.running,.empty{max-width:720px;margin-left:auto;margin-right:auto}.running{display:flex}.shelf-bar{max-width:752px;margin:0 auto}.shelf-head{max-width:752px;margin:0 auto;width:100%}body.desk .shelf-head{max-width:none;padding-left:calc(50% - 360px)}.page{padding:56px 64px 60vh}.dock{left:50%;right:auto;width:560px;transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01s!important;animation:none!important}}
 </style>
 </head>
@@ -474,6 +486,7 @@ let S=(()=>{try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.docs){d.se
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save: storage is full")}}
 function getHtml(id){try{return localStorage.getItem(DOCKEY+id)||""}catch(e){return ""}}
 function setHtml(id,h){try{localStorage.setItem(DOCKEY+id,h);return true}catch(e){toast("Couldn't save: storage is full");return false}}
+const DESK=window.folioDesk||null;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -532,15 +545,17 @@ $("#running").onclick=()=>{if(S.sprint)openDoc(S.sprint.docId)};
 $("#cards").addEventListener("click",e=>{const o=e.target.closest("[data-id]");if(o){hap();openDoc(o.dataset.id);return}const m=e.target.closest("[data-more]");if(m)docActions(m.dataset.more)});
 $("#newBtn").onclick=()=>{hap();tick();const d=newDoc("Untitled","<p><br></p>");openDoc(d.id,true)};
 $("#openBtn").onclick=()=>{hap();$("#file").click()};
-$("#file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
-  if(!/\.docx$/i.test(f.name)){toast("Folio opens .docx files only");return}
+$("#file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;importDocx(await f.arrayBuffer(),f.name,DESK&&DESK.pathFor?DESK.pathFor(f):null)};
+async function importDocx(buf,fname,fpath){
+  if(!/\.docx$/i.test(fname)){toast("Folio opens .docx files only");return}
+  if(fpath){const had=S.docs.find(x=>x.filePath===fpath);if(had){openDoc(had.id);toast("Already on your shelf");return}}
   try{toast("Opening…");await loadMammoth();const AL={center:"center",right:"right",end:"right",both:"justify",distribute:"justify"};
-    const r=await mammoth.convertToHtml({arrayBuffer:await f.arrayBuffer()},{ignoreEmptyParagraphs:false,
+    const r=await mammoth.convertToHtml({arrayBuffer:buf},{ignoreEmptyParagraphs:false,
       styleMap:["p[style-name='FolioAlign-center'] => p.al-center:fresh","p[style-name='FolioAlign-right'] => p.al-right:fresh","p[style-name='FolioAlign-justify'] => p.al-justify:fresh","u => u","strike => s","p[style-name='Quote'] => blockquote > p:fresh","p[style-name='FolioH1-center'] => h1.al-center:fresh","p[style-name='FolioH1-right'] => h1.al-right:fresh","p[style-name='FolioH1-justify'] => h1.al-justify:fresh","p[style-name='FolioH2-center'] => h2.al-center:fresh","p[style-name='FolioH2-right'] => h2.al-right:fresh","p[style-name='FolioH2-justify'] => h2.al-justify:fresh","p[style-name='FolioH3-center'] => h3.al-center:fresh","p[style-name='FolioH3-right'] => h3.al-right:fresh","p[style-name='FolioH3-justify'] => h3.al-justify:fresh","p[style-name='Intense Quote'] => blockquote > p:fresh"],
       transformDocument:mammoth.transforms.paragraph(el=>{const m=AL[el.alignment];if(!m||el.numbering)return el;const h=/^heading ([1-3])$/i.exec(el.styleName||"");if(h)return {...el,styleName:"FolioH"+h[1]+"-"+m};if(/heading|title|quote/i.test(el.styleName||""))return el;return {...el,styleName:"FolioAlign-"+m}})});
-    const html=clean(r.value)||"<p><br></p>";const d=newDoc(f.name.replace(/\.docx$/i,""),html);d.fileName=f.name;save();openDoc(d.id);
-    const lost=r.messages.some(m=>/image/i.test(m.message))||/<img/i.test(r.value);toast(lost?"Opened. Images were left out.":"Opened "+f.name)}
-  catch(err){console.error(err);toast("Couldn't read that file")}};
+    const html=clean(r.value)||"<p><br></p>";const d=newDoc(fname.replace(/\.docx$/i,""),html);d.fileName=fname;if(fpath)d.filePath=fpath;save();openDoc(d.id);
+    const lost=r.messages.some(m=>/image/i.test(m.message))||/<img/i.test(r.value);d.lossy=lost;save();toast(lost?"Opened. Images were left out.":"Opened "+fname)}
+  catch(err){console.error(err);toast("Couldn't read that file")}}
 function loadMammoth(){return window.mammoth?Promise.resolve():new Promise((ok,no)=>{const s=document.createElement("script");s.src="lib/mammoth.browser.min.js";s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
 function newDoc(title,html){const d={id:uid(),title,created:now(),updated:now()};setHtml(d.id,html);meta(d,html);S.docs.push(d);save();return d}
 function meta(d,html){const t=htmlText(html).replace(/\s+/g," ").trim();d.words=countWords(t);d.snippet=t.slice(0,160)}
@@ -562,7 +577,7 @@ $("#shelfSettings").onclick=()=>{$("#actH").textContent="Settings";
 /* ======================= editor ======================= */
 function openDoc(id,focus){const d=S.docs.find(x=>x.id===id);if(!d)return;cur=d;
   ed.innerHTML=getHtml(id)||"<p><br></p>";$("#title").value=d.title||"";
-  $("#shelf").hidden=true;$("#editor").hidden=false;$("#scroll").scrollTop=0;applyText();
+  $("#shelf").hidden=true;$("#editor").hidden=false;$("#scroll").scrollTop=0;applyText();paintDirty();
   refreshWords();paintAll();if(focus)setTimeout(()=>{ed.focus();placeCaretEnd()},60)}
 function placeCaretEnd(){const r=document.createRange();r.selectNodeContents(ed);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}
 $("#back").onclick=()=>{flush();hap();ed.blur();cur=null;$("#editor").hidden=true;$("#shelf").hidden=false;renderShelf()};
@@ -636,7 +651,8 @@ function setDocFmt(k,v){if(!cur)return;cur.fmt={...docFmt(),[k]:v};cur.updated=n
 function setTheme(v){S.settings.theme=v;save();applyTheme()}
 function applyTheme(){const t=S.settings.theme,root=document.documentElement;if(t==="auto")delete root.dataset.theme;else root.dataset.theme=t;
   const dark=t==="dark"||(t==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);
-  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute("content",dark?"#161513":"#f3efe8"))}
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute("content",dark?"#161513":"#f3efe8"));
+  if(DESK)try{DESK.theme(dark)}catch(e){}}
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTheme);
 function openText(){saveSel();showSheet($("#textSheet"));const f=docFmt();
   requestAnimationFrame(()=>{seg($("#fontSeg"),f.font,v=>setDocFmt("font",v));seg($("#lhSeg"),f.lh,v=>setDocFmt("lh",v));seg($("#paraSeg"),f.para,v=>setDocFmt("para",v));seg($("#themeSeg"),S.settings.theme,setTheme)});
@@ -941,7 +957,8 @@ function buildDocx(html,title,fmt){
   z.file("word/document.xml",doc);z.file("word/styles.xml",styles);z.file("word/numbering.xml",numbering);z.file("docProps/core.xml",core);
   return z.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",compression:"DEFLATE"})}
 
-async function exportDoc(d){if(cur===d)flush();
+async function exportDoc(d,saveAs){if(cur===d)flush();
+  if(DESK)return deskSave(d,saveAs);
   const name=((d.title||"Untitled").replace(/[\\/:*?"<>|]+/g,"").trim()||"Untitled")+".docx";
   let blob;try{blob=await buildDocx(getHtml(d.id),d.title||"Untitled",d.fmt)}catch(e){console.error(e);toast("Couldn't build the file");return}
   const file=new File([blob],name,{type:blob.type});
@@ -949,6 +966,43 @@ async function exportDoc(d){if(cur===d)flush();
   const download=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000);hideSheet()};
   if(navigator.canShare&&navigator.canShare({files:[file]}))await share();else download()}
 $("#share").onclick=()=>{if(cur){hap();exportDoc(cur)}};
+
+/* ======================= desktop (Windows app) ======================= */
+// In the Windows app, files are real: Save writes back to the .docx you opened, Save As picks a new place.
+async function deskSave(d,saveAs){
+  const name=((d.title||"Untitled").replace(/[\\/:*?"<>|]+/g,"").trim()||"Untitled")+".docx";
+  let target=saveAs?null:d.filePath||null;
+  if(target&&d.fileName&&!d.okOverwrite){ // first save over a file Folio opened: say what Folio keeps
+    const pick=await askOverwrite(d);if(!pick)return;if(pick==="copy")target=null;else{d.okOverwrite=true;save()}}
+  let blob;try{blob=await buildDocx(getHtml(d.id),d.title||"Untitled",d.fmt)}catch(e){console.error(e);toast("Couldn't build the file");return}
+  try{const path=await DESK.save(target,new Uint8Array(await blob.arrayBuffer()),name);if(!path)return;
+    if(path!==d.filePath){d.filePath=path;d.okOverwrite=true}d.dirty=false;save();paintDirty();chime();toast("Saved "+path.split(/[\\/]/).pop())}
+  catch(e){console.error(e);toast("Couldn't save: "+(e.message||"the file may be open in Word"))}}
+function askOverwrite(d){return new Promise(res=>{$("#actH").textContent="Save over the original?";
+  $("#actBody").innerHTML=`<p style="color:var(--muted);font-size:14px;line-height:1.5;padding:0 6px 14px">Folio keeps text, headings, lists, alignment, and bold, italic, underline and strikethrough. ${d.lossy?"This file had images, which Folio left out. They'd be lost from the original.":"Anything else in the original, like images, tables, comments or tracked changes, would be lost."}</p><div class="acts"><button data-a="copy">Save as a copy…</button><button data-a="over">Save over ${esc(d.fileName||"the original")}</button></div>`;
+  let done=false;const fin=v=>{if(done)return;done=true;res(v)};
+  $("#actBody").onclick=e=>{const b=e.target.closest("[data-a]");if(!b)return;fin(b.dataset.a);hideSheet()};
+  showSheet($("#actSheet"));const watch=setInterval(()=>{if(openSheet!==$("#actSheet")){clearInterval(watch);fin(null)}},200)})}
+function paintDirty(){const sh=$("#share");if(!sh)return;sh.classList.toggle("dirty",!!(DESK&&cur&&cur.dirty))}
+if(DESK){
+  document.body.classList.add("desk");
+  $("#share").setAttribute("aria-label","Save .docx (Ctrl+S)");$("#share").title="Save (Ctrl+S) · Save As (Ctrl+Shift+S)";
+  $("#share").innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v11.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18.5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>';
+  $("#openBtn").onclick=async()=>{const f=await DESK.open();if(f)importDocx(f.data,f.name,f.path)};
+  DESK.onOpenFile(f=>{if(f)importDocx(f.data,f.name,f.path)});
+  ed.addEventListener("input",()=>{if(cur&&!cur.dirty){cur.dirty=true;save();paintDirty()}});
+  document.addEventListener("dragover",e=>{e.preventDefault()});
+  document.addEventListener("drop",async e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(!f||!/\.docx$/i.test(f.name))return;e.preventDefault();e.stopPropagation();importDocx(await f.arrayBuffer(),f.name,DESK.pathFor(f))},true);
+  window.addEventListener("beforeunload",flush);
+  document.addEventListener("keydown",e=>{const k=e.key.toLowerCase(),mod=e.ctrlKey||e.metaKey;
+    if(k==="escape"&&openSheet){e.preventDefault();hideSheet();return}
+    if(!mod)return;
+    if(k==="s"){e.preventDefault();if(cur)exportDoc(cur,e.shiftKey)}
+    else if(k==="o"){e.preventDefault();$("#openBtn").click()}
+    else if(k==="n"){e.preventDefault();if(cur)$("#back").click();$("#newBtn").click()}
+    else if(k==="f"&&cur){e.preventDefault();openFind()}
+    else if(k==="e"&&cur&&e.shiftKey){e.preventDefault();toggleEditLock()}});
+}
 
 /* ======================= boot ======================= */
 window.Folio={S,toggleEditLock,buildDocx,clean,editBlocking,timeLocked,finishSprint,setLoopStart:t=>{loopStart=t},openDoc};
