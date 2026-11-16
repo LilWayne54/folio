@@ -412,7 +412,7 @@ body.desk .ed{-webkit-user-select:text}
       <div id="editOpts" hidden>
         <div class="row" style="border-top:0;padding-top:0"><div class="seg" id="modeSeg"><i></i><button data-v="always">Always</button><button data-v="sprints">Sprints</button><button data-v="loop">Loop</button></div></div>
         <div class="loopline" id="loopLine" hidden>Locked <input class="num" id="loopLock" type="number" inputmode="numeric" min="1" max="240"> free <input class="num" id="loopFree" type="number" inputmode="numeric" min="1" max="240"> min <b id="loopState"></b></div>
-        <div class="row ptsrow"><div class="lbl">Edit points<small>Each character you write earns a point, up to the max. Each edit spends one. At zero, editing is locked again. A max of 0 turns points off.</small></div><input class="num" id="ptsMax" type="number" inputmode="numeric" min="0" max="9999" aria-label="Most edit points"></div>
+        <div class="row ptsrow"><div class="lbl">Edit points<small>Each character you write earns a point, up to the max. Edits spend one point per character they remove. At zero, editing is locked again. A max of 0 turns points off.</small></div><input class="num" id="ptsMax" type="number" inputmode="numeric" min="0" max="9999" aria-label="Most edit points"></div>
         <div class="loopline" id="ptsLine" hidden><span class="pbar"><i id="ptsFill"></i></span><b id="ptsVal" class="g"></b></div>
       </div>
       <div class="row"><div class="lbl">Time lock<small>After a sprint ends, writing pauses for a while. Critiques stay open.</small></div><button class="sw" role="switch" id="swTime" aria-checked="false" aria-label="Time lock"></button></div>
@@ -690,11 +690,11 @@ function step(d){if(!hits.length)return;hitI=(hitI+d+hits.length)%hits.length;ti
 $("#findNext").onclick=()=>step(1);$("#findPrev").onclick=()=>step(-1);
 $("#caseBtn").onclick=()=>{findCase=!findCase;$("#caseBtn").classList.toggle("gold",findCase);tick();runFind(true)};
 function canReplace(n){if(timeLocked()){nope();toast("Time lock is on");return false}if(!editBlocking())return true;
-  if(ptsOn()){if(S.pts>=n){spend(n);return true}nope();toast(n>1?`That needs ${n} edit points. You have ${S.pts}.`:"Out of edit points");return false}
+  if(ptsOn()){if(S.pts>=n){spend(n);return true}nope();toast(`That needs ${n} edit point${n>1?"s":""}. You have ${S.pts}.`);return false}
   nope();toast("Edit lock is on, so replacing is off");return false}
 function replaceRange(r,t){r.deleteContents();if(t)r.insertNode(document.createTextNode(t))}
-$("#replOne").onclick=()=>{if(!hits.length||!canReplace(1))return;replaceRange(hits[hitI],$("#replIn").value);ed.normalize();ed.dispatchEvent(new Event("input"));hap();tick();runFind(true)};
-$("#replAll").onclick=()=>{if(!hits.length||!canReplace(hits.length))return;const n=hits.length,t=$("#replIn").value;for(let i=hits.length-1;i>=0;i--)replaceRange(hits[i],t);ed.normalize();ed.dispatchEvent(new Event("input"));hap();chime();toast(`Replaced ${n}`);runFind(false)};
+$("#replOne").onclick=()=>{if(!hits.length||!canReplace(chars(hits[hitI].toString())))return;replaceRange(hits[hitI],$("#replIn").value);ed.normalize();ed.dispatchEvent(new Event("input"));hap();tick();runFind(true)};
+$("#replAll").onclick=()=>{if(!hits.length||!canReplace(hits.reduce((a,h)=>a+chars(h.toString()),0)))return;const n=hits.length,t=$("#replIn").value;for(let i=hits.length-1;i>=0;i--)replaceRange(hits[i],t);ed.normalize();ed.dispatchEvent(new Event("input"));hap();chime();toast(`Replaced ${n}`);runFind(false)};
 
 /* keep the caret above the dock + keyboard */
 function keepCaretVisible(){const s=getSelection();if(!s.rangeCount)return;const r=s.getRangeAt(0).cloneRange();let rect=r.getClientRects()[0];if(!rect){const b=blockOf(s.anchorNode);rect=b&&b.getBoundingClientRect()}if(!rect)return;
@@ -706,13 +706,18 @@ if(window.visualViewport){visualViewport.addEventListener("resize",()=>{kb();set
 window.addEventListener("scroll",()=>{if(window.scrollY)window.scrollTo(0,0)});
 
 /* paste as plain text */
-ed.addEventListener("paste",e=>{e.preventDefault();if(timeLocked())return nope();const t=(e.clipboardData||window.clipboardData).getData("text/plain");if(!t)return;const s=getSelection();if(editBlocking()&&!s.isCollapsed&&!spend())s.collapseToEnd();document.execCommand("insertText",false,t)});
+ed.addEventListener("paste",e=>{e.preventDefault();if(timeLocked())return nope();const t=(e.clipboardData||window.clipboardData).getData("text/plain");if(!t)return;const s=getSelection();if(editBlocking()&&!s.isCollapsed){const c=selCost();if(!spend(c)){short(c);s.collapseToEnd()}}document.execCommand("insertText",false,t)});
 ed.addEventListener("drop",e=>{if(editBlocking()||timeLocked()){e.preventDefault();nope()}});
 
 /* ======================= edit points ======================= */
 // While the edit lock is blocking: each character written earns a point (up to the max); each edit spends one.
 const ptsOn=()=>S.settings.ptsMax>0;
 function earn(n){if(!ptsOn()||n<=0)return;const b=S.pts;S.pts=Math.min(S.settings.ptsMax,S.pts+n);if(S.pts!==b){save();paintPts()}}
+// cost of an edit = characters it removes (at least 1). Erasing a selected "mean" costs 4.
+const chars=t=>[...String(t||"")].length;
+function rangesText(rs){let n=0;for(const sr of rs||[]){try{const r=document.createRange();r.setStart(sr.startContainer,sr.startOffset);r.setEnd(sr.endContainer,sr.endOffset);n+=chars(r.toString())}catch(x){}}return n}
+function selCost(){const s=getSelection();return s.rangeCount&&!s.isCollapsed?Math.max(1,chars(s.toString())):1}
+function short(n){if(ptsOn()&&S.pts>0&&n>S.pts)toast(`That edit needs ${n} points. You have ${S.pts}.`)}
 function spend(n){n=n||1;if(!ptsOn()||S.pts<n)return false;S.pts-=n;save();tone(1500,.05,.04,"triangle");if(S.pts===0)toast("Out of edit points. Keep writing to earn more.");paintPts();return true}
 function paintPts(){const on=ptsOn(),m=S.settings.ptsMax;
   if($("#ptsLine")){$("#ptsLine").hidden=!on;if(on){$("#ptsFill").style.width=Math.round(S.pts/m*100)+"%";$("#ptsVal").textContent=S.pts+" / "+m}}
@@ -725,9 +730,11 @@ ed.addEventListener("beforeinput",e=>{
   if(timeLocked()){e.preventDefault();nope();return}
   if(!editBlocking())return;
   const t=e.inputType||"";
-  if(t.startsWith("delete")||t==="historyUndo"||t==="historyRedo"){if(spend())return;e.preventDefault();nope();return}
+  if(t.startsWith("delete")||t==="historyUndo"||t==="historyRedo"){
+    let cost=1;if(t.startsWith("delete")){const rs=e.getTargetRanges?e.getTargetRanges():[];cost=Math.max(1,rs.length?rangesText(rs):selCost())}
+    if(spend(cost))return;short(cost);e.preventDefault();nope();return}
   const s=getSelection();
-  if(t.startsWith("insert")&&t!=="insertReplacementText"&&s.rangeCount&&!s.isCollapsed&&spend())return; // typing over a selection is an edit
+  if(t.startsWith("insert")&&t!=="insertReplacementText"&&s.rangeCount&&!s.isCollapsed){const c=selCost();if(spend(c))return;short(c)} // typing over a selection is an edit
   if(t==="insertText")earn([...(e.data||"")].length);else earn(charsIn(t));
   if(t.startsWith("insert")&&t!=="insertReplacementText"&&s.rangeCount&&!s.isCollapsed){
     e.preventDefault();s.collapseToEnd();
@@ -739,7 +746,7 @@ ed.addEventListener("beforeinput",e=>{
 ed.addEventListener("keydown",e=>{ // hardware keyboards on iPad / Mac
   if(timeLocked()&&!e.metaKey&&!e.ctrlKey&&e.key.length<=1){e.preventDefault();return}
   if(!editBlocking())return;const k=e.key.toLowerCase();
-  if(k==="backspace"||k==="delete"||((e.metaKey||e.ctrlKey)&&(k==="z"||k==="y"||k==="x"))){if(ptsOn()&&S.pts>0)return;e.preventDefault();nope()}});
+  if(k==="backspace"||k==="delete"||((e.metaKey||e.ctrlKey)&&(k==="z"||k==="y"||k==="x"))){if(ptsOn()&&S.pts>0)return; /* beforeinput charges the exact cost */e.preventDefault();nope()}});
 ed.addEventListener("cut",e=>{if(timeLocked()||(editBlocking()&&!(ptsOn()&&S.pts>0))){e.preventDefault();nope()}}); // with points, the cut is paid for when it happens
 let nopeAt=0;
 function nope(){const lb=$("#lockBtn");lb.classList.remove("bump");void lb.offsetWidth;lb.classList.add("bump");if(now()-nopeAt>250){thud();nopeAt=now()}if(timeLocked()){const p=$("#page");p.classList.remove("bump");void p.offsetWidth;p.classList.add("bump")}}
