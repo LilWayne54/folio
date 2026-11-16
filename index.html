@@ -452,6 +452,8 @@ body.desk .ed{-webkit-user-select:text}
         <div class="row" style="border-top:0;padding-top:0"><div class="seg" id="modeSeg"><i></i><button data-v="sprints">During sprints</button><button data-v="always">All the time</button></div></div>
         <div class="row ptsrow"><div class="lbl">Edit points<small>Each character you write earns a point, up to this max. Edits spend one point per character they remove. 0 turns points off.</small></div><input class="num" id="ptsMax" type="number" inputmode="numeric" min="0" max="9999" aria-label="Most edit points"></div>
         <div class="loopline" id="ptsLine" hidden><span class="pbar"><i id="ptsFill"></i></span><b id="ptsVal" class="g"></b></div>
+        <div class="row ptsrow"><div class="lbl">Movement points<small>Earned the same way, up to this max. Each move spends one: an arrow, Home, End, Page Up or Down, or tapping somewhere new. At zero, the cursor stays put. 0 turns them off.</small></div><input class="num" id="mMax" type="number" inputmode="numeric" min="0" max="9999" aria-label="Most movement points"></div>
+        <div class="loopline" id="mLine" hidden><span class="pbar"><i id="mFill"></i></span><b id="mVal" class="g"></b></div>
       </div>
     </div>
     <div class="kick">After each sprint</div>
@@ -527,7 +529,7 @@ body.desk .ed{-webkit-user-select:text}
 "use strict";
 /* ======================= storage ======================= */
 const KEY="folio.v1", DOCKEY="folio.doc.";
-const DEF_SETTINGS={minutes:25,editLock:false,mode:"sprints",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0,autoRestart:false,idleRest:false,pages:false,after:"stop",afterMin:5,repeat:false};
+const DEF_SETTINGS={minutes:25,editLock:false,mode:"sprints",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0,mMax:0,autoRestart:false,idleRest:false,pages:false,after:"stop",afterMin:5,repeat:false};
 function fresh(){return {docs:[],critiques:[],sprints:[],settings:{...DEF_SETTINGS},sprint:null,timeLockUntil:0,pts:0}}
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.docs){d.settings={...DEF_SETTINGS,...d.settings};return {...fresh(),...d}}}catch(e){}return fresh()})();
 // one-time move from the old controls (Loop / Time lock / Then restart) to Edit lock + After each sprint
@@ -632,7 +634,7 @@ $("#shelfSettings").onclick=()=>{$("#actH").textContent="Settings";
   showSheet($("#actSheet"));requestAnimationFrame(()=>seg($("#themeSeg2"),S.settings.theme,setTheme))};
 
 /* ======================= editor ======================= */
-function openDoc(id,focus){const d=S.docs.find(x=>x.id===id);if(!d)return;cur=d;
+function openDoc(id,focus){const d=S.docs.find(x=>x.id===id);if(!d)return;cur=d;lastSel=null;
   ed.innerHTML=getHtml(id)||"<p><br></p>";$("#title").value=d.title||"";
   $("#shelf").hidden=true;$("#editor").hidden=false;$("#scroll").scrollTop=0;applyText();paintDirty();
   refreshWords();paintAll();if(focus)setTimeout(()=>{ed.focus();placeCaretEnd()},60)}
@@ -681,7 +683,7 @@ function unwrapQuote(bq){const kids=[...bq.childNodes];const hasBlock=kids.some(
   if(hasBlock){kids.forEach(k=>bq.before(k));first=kids.find(k=>k.nodeType===1)}else{const p=document.createElement("p");kids.forEach(k=>p.appendChild(k));if(!p.firstChild)p.innerHTML="<br>";bq.before(p);first=p}
   bq.remove();if(first){const r=document.createRange();r.selectNodeContents(first);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}}
 $("#fmt").addEventListener("pointerdown",e=>{if(e.target.closest("button"))e.preventDefault()}); // keep the keyboard up
-$("#fmt").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tick();
+$("#fmt").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tick();quietSel(400);
   if(b.dataset.p){showPanel(b.dataset.p);return}
   const c=b.dataset.cmd;
   if(c==="done"){ed.blur();return}
@@ -713,7 +715,7 @@ let pgRaf=0;
 function schedulePaginate(){if(!S.settings.pages)return;cancelAnimationFrame(pgRaf);pgRaf=requestAnimationFrame(paginate)}
 function clearSpacers(){const sp=ed.querySelectorAll(".pgs");if(!sp.length)return;sp.forEach(x=>x.remove());ed.normalize()}
 function paginate(){
-  const pg=$("#page"),on=!!S.settings.pages&&!$("#editor").hidden;pg.classList.toggle("paged",!!S.settings.pages);
+  quietSel(300);  const pg=$("#page"),on=!!S.settings.pages&&!$("#editor").hidden;pg.classList.toggle("paged",!!S.settings.pages);
   clearSpacers();if(!on){$("#sheets").innerHTML="";return}
   const avail=$("#scroll").clientWidth-24,PW=Math.min(760,avail),PH=Math.round(PW*11/8.5),M=Math.round(PW/8.5),G=Math.max(14,Math.round(PW*.03)),P=PH+G,CH=PH-2*M;
   pg.style.setProperty("--pw",PW+"px");pg.style.setProperty("--ph",PH+"px");pg.style.setProperty("--m",M+"px");
@@ -797,7 +799,7 @@ $("#caseBtn").onclick=()=>{findCase=!findCase;$("#caseBtn").classList.toggle("go
 function canReplace(n){if(timeLocked()){nope();toast("Time lock is on");return false}if(!editBlocking())return true;
   if(ptsOn()){if(S.pts>=n){spend(n);return true}nope();toast(`That needs ${n} edit point${n>1?"s":""}. You have ${S.pts}.`);return false}
   nope();toast("Edit lock is on, so replacing is off");return false}
-function replaceRange(r,t){r.deleteContents();if(t)r.insertNode(document.createTextNode(t))}
+function replaceRange(r,t){quietSel(400);r.deleteContents();if(t)r.insertNode(document.createTextNode(t))}
 $("#replOne").onclick=()=>{if(!hits.length||!canReplace(chars(hits[hitI].toString())))return;replaceRange(hits[hitI],$("#replIn").value);ed.normalize();ed.dispatchEvent(new Event("input"));hap();tick();runFind(true)};
 $("#replAll").onclick=()=>{if(!hits.length||!canReplace(hits.reduce((a,h)=>a+chars(h.toString()),0)))return;const n=hits.length,t=$("#replIn").value;for(let i=hits.length-1;i>=0;i--)replaceRange(hits[i],t);ed.normalize();ed.dispatchEvent(new Event("input"));hap();chime();toast(`Replaced ${n}`);runFind(false)};
 
@@ -817,7 +819,37 @@ ed.addEventListener("drop",e=>{if(editBlocking()||timeLocked()){e.preventDefault
 /* ======================= edit points ======================= */
 // While the edit lock is blocking: each character written earns a point (up to the max); each edit spends one.
 const ptsOn=()=>S.settings.ptsMax>0;
-function earn(n){if(!ptsOn()||n<=0)return;const b=S.pts;S.pts=Math.min(S.settings.ptsMax,S.pts+n);if(S.pts!==b){save();paintPts()}}
+function earn(n){if(n<=0)return;let ch=false;
+  if(ptsOn()){const b=S.pts;S.pts=Math.min(S.settings.ptsMax,S.pts+n);ch=ch||S.pts!==b}
+  if(mOn()){const b=S.mpts||0;S.mpts=Math.min(S.settings.mMax,b+n);ch=ch||S.mpts!==b}
+  if(ch){save();paintPts()}}
+
+/* ======================= movement points ======================= */
+// Same earning as edit points; while the edit lock is blocking, each cursor move spends one.
+// Keys: arrows, Home, End, Page Up/Down. Pointer: a tap or click that lands the cursor somewhere new (one per tap or drag).
+const mOn=()=>S.settings.mMax>0;
+const moveActive=()=>mOn()&&editBlocking();
+function spendM(){if((S.mpts||0)<1)return false;S.mpts--;save();if(S.mpts===0)toast("Out of movement points. Keep writing to earn more.");paintPts();return true}
+let lastSel=null,selQuietUntil=0,ptrDown=false,ptrPending=false;
+const quietSel=ms=>{selQuietUntil=now()+(ms||180)};
+const selNow=()=>{const s=getSelection();return s.rangeCount&&ed.contains(s.anchorNode)?s.getRangeAt(0).cloneRange():null};
+const sameSel=(a,b)=>!!a&&!!b&&a.startContainer===b.startContainer&&a.startOffset===b.startOffset&&a.endContainer===b.endContainer&&a.endOffset===b.endOffset;
+let mNoped=0;
+function checkMove(){const c=selNow();if(!c||!lastSel||!lastSel.startContainer.isConnected||sameSel(c,lastSel)){if(c)lastSel=c;return}
+  if(spendM()){lastSel=c;return}
+  const s=getSelection();s.removeAllRanges();s.addRange(lastSel);quietSel(120);nope();
+  if(now()-mNoped>4000){mNoped=now();toast("No movement points. Keep writing to earn more.")}}
+document.addEventListener("selectionchange",()=>{const c=selNow();if(!c)return;
+  if(!moveActive()||now()<selQuietUntil||!lastSel){lastSel=c;return}
+  if(ptrDown){ptrPending=true;return}
+  checkMove()});
+ed.addEventListener("pointerdown",()=>{ptrDown=true;ptrPending=false},true);
+["pointerup","pointercancel"].forEach(ev=>document.addEventListener(ev,()=>{if(!ptrDown)return;ptrDown=false;if(ptrPending){ptrPending=false;setTimeout(checkMove,0)}},true));
+ed.addEventListener("beforeinput",()=>quietSel(),true);ed.addEventListener("input",()=>{quietSel();lastSel=selNow()||lastSel},true);
+const MOVE_KEYS=["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End","PageUp","PageDown"];
+ed.addEventListener("keydown",e=>{if(!MOVE_KEYS.includes(e.key)||!moveActive())return;
+  if(spendM()){quietSel(250);return}
+  e.preventDefault();nope();if(now()-mNoped>4000){mNoped=now();toast("No movement points. Keep writing to earn more.")}},true);
 // cost of an edit = characters it removes (at least 1). Erasing a selected "mean" costs 4.
 const chars=t=>[...String(t||"")].length;
 function rangesText(rs){let n=0;for(const sr of rs||[]){try{const r=document.createRange();r.setStart(sr.startContainer,sr.startOffset);r.setEnd(sr.endContainer,sr.endOffset);n+=chars(r.toString())}catch(x){}}return n}
@@ -826,6 +858,7 @@ function short(n){if(ptsOn()&&S.pts>0&&n>S.pts)toast(`That edit needs ${n} point
 function spend(n){n=n||1;if(!ptsOn()||S.pts<n)return false;S.pts-=n;save();tone(1500,.05,.04,"triangle");if(S.pts===0)toast("Out of edit points. Keep writing to earn more.");paintPts();return true}
 function paintPts(){const on=ptsOn(),m=S.settings.ptsMax;
   if($("#ptsLine")){$("#ptsLine").hidden=!on;if(on){$("#ptsFill").style.width=Math.round(S.pts/m*100)+"%";$("#ptsVal").textContent=S.pts+" / "+m}}
+  const mo=mOn(),mm=S.settings.mMax;if($("#mLine")){$("#mLine").hidden=!mo;if(mo){$("#mFill").style.width=Math.round((S.mpts||0)/mm*100)+"%";$("#mVal").textContent=(S.mpts||0)+" / "+mm}}
   paintAll()}
 const charsIn=t=>t==="insertParagraph"||t==="insertLineBreak"?1:0;
 
@@ -954,7 +987,7 @@ function paintSprintSheet(){const st=S.settings,run=!!S.sprint;
   sw($("#swEdit"),st.editLock,v=>{st.editLock=v;save();paintLocks();paintAll()});
   sw($("#swRepeat"),st.repeat,v=>{st.repeat=v;save();paintSteps()});
   sw($("#swIdle"),st.idleRest,v=>{st.idleRest=v;save();paintAll();toast(v?"Writing is locked between sprints":"Writing is open between sprints")});
-  $("#ptsMax").value=st.ptsMax;paintPts();
+  $("#ptsMax").value=st.ptsMax;$("#mMax").value=st.mMax;paintPts();
   paintLocks();requestAnimationFrame(()=>{seg($("#modeSeg"),st.mode,v=>{st.mode=v;save();paintLocks();paintAll()})})}
 const ICON={edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5l4 4M4 20l1-5L15.5 4.5a2.1 2.1 0 0 1 3 0l1 1a2.1 2.1 0 0 1 0 3L9 19z"/></svg>',rest:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></svg>'};
 function paintSteps(){const st=S.settings,list=st.steps,cur_i=S.brk?S.brk.idx:-1;
@@ -977,7 +1010,7 @@ $("#stepsList").addEventListener("focusout",()=>setTimeout(()=>{if(!$("#stepsLis
 document.querySelector(".addrow").addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(!b)return;S.settings.steps.push({k:b.dataset.add,m:5});save();tick();hap();paintSteps();
   if(b.dataset.add==="edit"&&!S.settings.editLock)toast("Your edit lock is off, so Edit is just a timed break.")});
 const numIn=(el,key,lo,hi,after)=>el.addEventListener("change",()=>{const v=Math.max(lo,Math.min(hi,Math.round(+el.value)||lo));el.value=v;S.settings[key]=v;save();tick();after&&after()});
-numIn($("#ptsMax"),"ptsMax",0,9999,()=>{S.pts=Math.min(S.pts,S.settings.ptsMax);save();paintPts()});
+numIn($("#ptsMax"),"ptsMax",0,9999,()=>{S.pts=Math.min(S.pts,S.settings.ptsMax);save();paintPts()});numIn($("#mMax"),"mMax",0,9999,()=>{S.mpts=Math.min(S.mpts||0,S.settings.mMax);save();paintPts()});
 document.querySelectorAll(".num").forEach(n=>n.addEventListener("keydown",e=>{if(e.key==="Enter")n.blur()}));
 
 /* ======================= critiques ======================= */
@@ -1026,7 +1059,7 @@ function paintAll(){
   const st=S.settings,lb=$("#lockBtn"),blocking=editBlocking();
   lb.classList.toggle("armed",st.editLock);lb.classList.toggle("blocking",blocking);
   $("#shackle").setAttribute("d",blocking?"M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3":"M8.5 10.5V7.5a3.5 3.5 0 0 1 6.6-1.6");
-  $("#lockTxt").textContent=st.editLock&&ptsOn()?String(S.pts):"";
+  $("#lockTxt").textContent=!st.editLock?"":[ptsOn()?String(S.pts):"",mOn()?"↔"+(S.mpts||0):""].filter(Boolean).join(" ");
   // rest / editing time banner
   const tl=timeLocked(),eb=editBreak(),bn=$("#tlock");bn.hidden=!(tl||eb);bn.classList.toggle("edit",eb);$("#page").classList.toggle("locked",tl);
   const want=tl?"false":"true";if(ed.getAttribute("contenteditable")!==want){ed.setAttribute("contenteditable",want);if(tl)ed.blur()}
