@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Folio">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#f3efe8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#e6dfd3" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#161513" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -19,10 +19,10 @@
 @font-face{font-family:"Folio Read";src:url(fonts/read-italic.woff2) format("woff2");font-weight:200 800;font-style:italic;font-display:swap}
 /* One accent: gold, as on Hone's pin. Gold means "on": a running sprint, a lock that is actually blocking. */
 :root{
-  --ground:#f3efe8; --paper:#fffdf9; --raise:#ffffff; --ink:#24211d; --muted:#857d73; --faint:#b3aba0;
+  --ground:#e6dfd3; --paper:#fffdf9; --raise:#ffffff; --ink:#24211d; --muted:#857d73; --faint:#b3aba0;
   --line:rgba(36,33,29,.10); --field:rgba(36,33,29,.055); --press:rgba(36,33,29,.09);
   --gold:#a8771c; --gold-fill:#e0aa45; --gold-soft:rgba(224,170,69,.2); --gold-ink:#2b1d03;
-  --glass:rgba(255,253,249,.78); --shadow:rgba(60,44,20,.16); --ok:#3d8a5c; --bad:#c2453b;
+  --glass:rgba(255,253,249,.82); --shadow:rgba(60,44,20,.22); --ok:#3d8a5c; --bad:#c2453b;
   --ui:"Folio UI",ui-sans-serif,-apple-system,system-ui,sans-serif;
   --read:"Folio Read","Iowan Old Style",Georgia,serif;
   --spring:cubic-bezier(.34,1.56,.64,1);
@@ -93,7 +93,7 @@ svg{display:block}
 .title{flex:1;min-width:0;border:0;background:transparent;font:650 16.5px var(--ui);letter-spacing:-.01em;padding:8px 6px;border-radius:10px;text-align:center;text-overflow:ellipsis}
 .title:focus{outline:none;background:var(--field)}
 .scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 12px calc(var(--kb) + var(--safe-b) + 170px);overscroll-behavior:contain}
-.page{max-width:720px;margin:0 auto;background:var(--paper);border-radius:6px 6px 20px 20px;box-shadow:0 1px 0 var(--line),0 18px 40px -26px var(--shadow);min-height:calc(100% - 10px);padding:30px 24px 60vh;position:relative;transition:filter .4s,opacity .4s}
+.page{max-width:720px;margin:0 auto;background:var(--paper);border-radius:6px 6px 20px 20px;box-shadow:0 0 0 1px rgba(60,44,20,.07),0 1px 2px rgba(60,44,20,.08),0 22px 48px -26px var(--shadow);min-height:calc(100% - 10px);padding:30px 24px 60vh;position:relative;transition:filter .4s,opacity .4s}
 .ed{outline:none;font:400 19px/1.62 var(--read);color:var(--ink);-webkit-user-select:text;user-select:text;caret-color:var(--gold-fill);min-height:60vh;word-wrap:break-word}
 .ed p,.ed div{margin:0 0 .55em}
 .ed h1{font:700 1.5em/1.2 var(--read);margin:.4em 0 .5em;letter-spacing:-.01em}
@@ -101,7 +101,8 @@ svg{display:block}
 .ed h3{font:600 italic 1.08em/1.3 var(--read);margin:.5em 0 .4em}
 .ed ul,.ed ol{margin:0 0 .6em;padding-left:1.3em}
 .ed:empty::before{content:attr(data-ph);color:var(--faint);font-style:italic}
-.page.locked{filter:saturate(.6);opacity:.55}
+.page.locked{filter:saturate(.7);opacity:.8}
+.page.locked .ed{opacity:.7}
 .page.bump{animation:bump .3s}
 @keyframes bump{30%{transform:translateX(-3px)}60%{transform:translateX(2px)}}
 
@@ -294,7 +295,7 @@ body.desk .scroll::-webkit-scrollbar-thumb{background:var(--press);border-radius
 body.desk .scroll::-webkit-scrollbar-track{background:transparent}
 body.desk .ed{-webkit-user-select:text}
 #share.dirty::after{content:"";position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--gold-fill)}
-@media (min-width:700px){.cards,.running,.empty{max-width:720px;margin-left:auto;margin-right:auto}.running{display:flex}.shelf-bar{max-width:752px;margin:0 auto}.shelf-head{max-width:752px;margin:0 auto;width:100%}body.desk .shelf-head{max-width:none;padding-left:calc(50% - 360px)}.page{padding:56px 64px 60vh}.dock{left:50%;right:auto;width:560px;transform:translateX(-50%)}}
+@media (min-width:700px){.tlock{max-width:720px;width:calc(100% - 24px);margin-left:auto;margin-right:auto}.cards,.running,.empty{max-width:720px;margin-left:auto;margin-right:auto}.running{display:flex}.shelf-bar{max-width:752px;margin:0 auto}.shelf-head{max-width:752px;margin:0 auto;width:100%}body.desk .shelf-head{max-width:none;padding-left:calc(50% - 360px)}.page{padding:56px 64px 60vh}.dock{left:50%;right:auto;width:560px;transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01s!important;animation:none!important}}
 </style>
 </head>
@@ -657,7 +658,7 @@ function setDocFmt(k,v){if(!cur)return;cur.fmt={...docFmt(),[k]:v};cur.updated=n
 function setTheme(v){S.settings.theme=v;save();applyTheme()}
 function applyTheme(){const t=S.settings.theme,root=document.documentElement;if(t==="auto")delete root.dataset.theme;else root.dataset.theme=t;
   const dark=t==="dark"||(t==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);
-  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute("content",dark?"#161513":"#f3efe8"));
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute("content",dark?"#161513":"#e6dfd3"));
   if(DESK)try{DESK.theme(dark)}catch(e){}}
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTheme);
 function openText(){saveSel();showSheet($("#textSheet"));const f=docFmt();
