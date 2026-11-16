@@ -29,11 +29,16 @@
   --kb:0px; --safe-b:env(safe-area-inset-bottom,0px);
   color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root{
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
   --ground:#161513; --paper:#1e1c1a; --raise:#272522; --ink:#efebe5; --muted:#9d958b; --faint:#6b645c;
   --line:rgba(239,235,229,.10); --field:rgba(239,235,229,.065); --press:rgba(239,235,229,.12);
   --gold:#e8b85a; --gold-fill:#e8b85a; --gold-soft:rgba(232,184,90,.18); --gold-ink:#241800;
   --glass:rgba(34,32,29,.78); --shadow:rgba(0,0,0,.5); --ok:#6cc08b; --bad:#ff7066; color-scheme:dark}}
+:root[data-theme=dark]{
+  --ground:#161513; --paper:#1e1c1a; --raise:#272522; --ink:#efebe5; --muted:#9d958b; --faint:#6b645c;
+  --line:rgba(239,235,229,.10); --field:rgba(239,235,229,.065); --press:rgba(239,235,229,.12);
+  --gold:#e8b85a; --gold-fill:#e8b85a; --gold-soft:rgba(232,184,90,.18); --gold-ink:#241800;
+  --glass:rgba(34,32,29,.78); --shadow:rgba(0,0,0,.5); --ok:#6cc08b; --bad:#ff7066; color-scheme:dark}
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
@@ -226,8 +231,47 @@ svg{display:block}
 /* toast */
 .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);z-index:60;transform:translate(-50%,-140%);padding:11px 18px;border-radius:16px;background:var(--ink);color:var(--paper);font:600 14px var(--ui);box-shadow:0 12px 30px -10px var(--shadow);transition:transform .45s var(--spring);max-width:calc(100% - 32px);text-align:center;display:flex;align-items:center;gap:10px}
 .toast.show{transform:translate(-50%,0)}
-.toast button{color:var(--gold-fill);font-weight:700}
+.toast{pointer-events:none}
+.toast button{color:var(--gold-fill);font-weight:700;pointer-events:auto}
 
+/* format bar: panels that slide in place, scroll sideways if they don't fit */
+.fmt{align-self:stretch;padding:4px;border-radius:18px;overflow:hidden}
+.fpanel{display:flex;align-items:center;gap:2px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;animation:pin .32s var(--spring)}
+.fpanel::-webkit-scrollbar{display:none}
+@keyframes pin{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.fmt .icon{width:40px;height:38px;border-radius:12px;font:700 16px var(--read);flex:none}
+.fmt .icon svg{width:20px;height:20px}
+.fmt .wordbtn{width:auto;padding:0 11px;font:620 13.5px var(--ui);white-space:nowrap;gap:4px;display:flex;align-items:center}
+.fmt .wordbtn svg{width:12px;height:12px;opacity:.6}
+.fmt .back{color:var(--muted)}
+.fmt .sep{flex:none}
+.lockbtn{touch-action:none;-webkit-user-select:none}
+/* text settings */
+.ed{font-size:var(--fs,19px);line-height:var(--lh,1.62)}
+.ed.serif{font-family:var(--read)}
+.ed.sans{font-family:var(--ui)}
+.ed.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:calc(var(--fs,19px) * .88)}
+.ed.indent p,.ed.indent div{margin:0;text-indent:1.6em}
+.ed.indent h1+p,.ed.indent h2+p,.ed.indent h3+p,.ed.indent blockquote+p,.ed.indent p[style*=center]{text-indent:0}
+.ed blockquote{margin:.2em 0 .7em;padding:.1em 0 .1em 1em;border-left:3px solid var(--gold-soft);color:color-mix(in srgb,var(--ink) 82%,transparent);font-style:italic}
+.ed blockquote p{margin:0 0 .4em;text-indent:0!important}
+.ed s,.ed strike{text-decoration-color:var(--muted)}
+::highlight(folio-find){background:var(--gold-soft)}
+::highlight(folio-cur){background:var(--gold-fill);color:var(--gold-ink)}
+.range{width:100%;accent-color:var(--gold-fill);height:28px}
+.sizerow{display:flex;align-items:center;gap:12px;padding:8px 0 12px}
+.sizerow span{font-family:var(--read);color:var(--muted);flex:none}
+.findrow{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.field{flex:1;min-width:0;height:46px;border:0;border-radius:14px;background:var(--paper);padding:0 14px;font:400 17px var(--ui);box-shadow:0 1px 0 var(--line)}
+.field:focus{outline:2px solid var(--gold-fill)}
+.findinfo{font:600 13px var(--ui);color:var(--muted);min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
+.sq{width:46px;height:46px;border-radius:14px;background:var(--paper);display:grid;place-items:center;box-shadow:0 1px 0 var(--line);flex:none}
+.sq svg{width:20px;height:20px}
+.scrim.clear{background:transparent}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:var(--paper);border-radius:18px;padding:14px 16px;box-shadow:0 1px 0 var(--line)}
+.stat b{display:block;font:300 30px/1.1 var(--ui);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-weight:550;font-size:12.5px}
 @media (min-width:700px){.page{padding:56px 64px 60vh}.dock{left:50%;right:auto;width:560px;transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01s!important;animation:none!important}}
 </style>
@@ -270,14 +314,48 @@ svg{display:block}
   </div>
   <div class="dock" id="dock">
     <div class="bar fmt" id="fmt" hidden>
-      <button class="icon" data-cmd="bold" aria-label="Bold"><b>B</b></button>
-      <button class="icon" data-cmd="italic" aria-label="Italic"><i style="font-weight:500">I</i></button>
-      <button class="icon" data-cmd="underline" aria-label="Underline"><u style="font-weight:500">U</u></button>
-      <span class="sep"></span>
-      <button class="icon" data-cmd="heading" aria-label="Heading" style="font-family:var(--ui);font-size:14px">H</button>
-      <button class="icon" data-cmd="list" aria-label="Bulleted list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 6.5h10M10 12h10M10 17.5h10"/><circle cx="5" cy="6.5" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="17.5" r="1.2" fill="currentColor"/></svg></button>
-      <span class="sep"></span>
-      <button class="icon" data-cmd="done" aria-label="Hide keyboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10l6 6 6-6"/></svg></button>
+      <div class="fpanel" data-panel="main">
+        <button class="icon" data-cmd="undo" aria-label="Undo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+        <button class="icon" data-cmd="redo" aria-label="Redo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+        <span class="sep"></span>
+        <button class="icon" data-cmd="bold" aria-label="Bold"><b>B</b></button>
+        <button class="icon" data-cmd="italic" aria-label="Italic"><i style="font-weight:500">I</i></button>
+        <button class="icon" data-cmd="underline" aria-label="Underline"><u style="font-weight:500">U</u></button>
+        <button class="icon" data-cmd="strikeThrough" aria-label="Strikethrough"><s style="font-weight:500">S</s></button>
+        <span class="sep"></span>
+        <button class="icon wordbtn" data-p="style" aria-label="Paragraph style"><span id="styleLbl">Body</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+        <button class="icon" data-p="align" aria-label="Alignment" id="alignBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+        <button class="icon" data-p="list" aria-label="Lists and indent" id="listBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5h10M10 12h10M10 17.5h10"/><circle cx="5" cy="6.5" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="17.5" r="1.2" fill="currentColor"/></svg></button>
+        <span class="sep"></span>
+        <button class="icon" data-p="more" aria-label="More"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18.5" cy="12" r="1.3" fill="currentColor"/></svg></button>
+        <button class="icon" data-cmd="done" aria-label="Hide keyboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10l6 6 6-6"/></svg></button>
+      </div>
+      <div class="fpanel" data-panel="style" hidden><button class="icon back" data-p="main" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M15 5l-7 7 7 7'/></svg></button><span class="sep"></span>
+        <button class="icon wordbtn" data-block="p">Body</button>
+        <button class="icon wordbtn" data-block="h1" style="font-weight:800">Heading 1</button>
+        <button class="icon wordbtn" data-block="h2" style="font-weight:700">Heading 2</button>
+        <button class="icon wordbtn" data-block="h3" style="font-style:italic">Heading 3</button>
+        <button class="icon wordbtn" data-block="blockquote" style="font-family:var(--read);font-style:italic">Quote</button>
+      </div>
+      <div class="fpanel" data-panel="align" hidden><button class="icon back" data-p="main" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M15 5l-7 7 7 7'/></svg></button><span class="sep"></span>
+        <button class="icon" data-align="left" aria-label="Align left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></svg></button>
+        <button class="icon" data-align="center" aria-label="Center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></svg></button>
+        <button class="icon" data-align="right" aria-label="Align right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M10 10h10M4 14h16M10 18h10"/></svg></button>
+        <button class="icon" data-align="justify" aria-label="Justify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg></button>
+      </div>
+      <div class="fpanel" data-panel="list" hidden><button class="icon back" data-p="main" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M15 5l-7 7 7 7'/></svg></button><span class="sep"></span>
+        <button class="icon" data-cmd="insertUnorderedList" aria-label="Bulleted list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5h10M10 12h10M10 17.5h10"/><circle cx="5" cy="6.5" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="17.5" r="1.2" fill="currentColor"/></svg></button>
+        <button class="icon" data-cmd="insertOrderedList" aria-label="Numbered list"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5h10M10 12h10M10 17.5h10"/><path d="M4.3 4.8h1.3v4" stroke-width="1.6"/><path d="M4 14.6c.4-.8 2.7-.9 2.7.5 0 1-2.7 1.9-2.7 3.1h2.9" stroke-width="1.6"/></svg></button>
+        <span class="sep"></span>
+        <button class="icon" data-cmd="outdent" aria-label="Decrease indent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M11 10h9M11 14h9M4 19h16M8 9.5L5 12l3 2.5"/></svg></button>
+        <button class="icon" data-cmd="indent" aria-label="Increase indent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M11 10h9M11 14h9M4 19h16M5 9.5L8 12l-3 2.5"/></svg></button>
+      </div>
+      <div class="fpanel" data-panel="more" hidden><button class="icon back" data-p="main" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d='M15 5l-7 7 7 7'/></svg></button><span class="sep"></span>
+        <button class="icon wordbtn" data-cmd="scene">⁂ Scene break</button>
+        <button class="icon wordbtn" data-cmd="find"><svg style="width:15px;height:15px;opacity:1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg> Find</button>
+        <button class="icon wordbtn" data-cmd="page"><span style="font-family:var(--read);font-size:15px">Aa</span> Text</button>
+        <button class="icon wordbtn" data-cmd="stats"># Count</button>
+      </div>
     </div>
     <div class="bar">
       <button class="pill" id="pill"><svg class="ring" viewBox="0 0 30 30"><circle cx="15" cy="15" r="11.5" fill="none" stroke="var(--field)" stroke-width="3.5"/><circle id="pillArc" cx="15" cy="15" r="11.5" fill="none" stroke="var(--gold-fill)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="72.26" stroke-dashoffset="72.26" transform="rotate(-90 15 15)"/><circle cx="15" cy="15" r="3" fill="var(--faint)" id="pillDot"/></svg><span class="lbl" id="pillLbl">Sprint</span></button>
@@ -347,6 +425,35 @@ svg{display:block}
   <div class="sheet-body" id="actBody"></div>
 </div>
 
+<!-- text settings -->
+<div class="sheet" id="textSheet" role="dialog" aria-label="Text">
+  <div class="grab"></div>
+  <div class="sheet-head"><h2>Text</h2></div>
+  <div class="sheet-body">
+    <div class="kick" style="margin-top:4px">Typeface</div>
+    <div class="seg" id="fontSeg" style="margin-bottom:6px"><i></i><button data-v="serif" style="font-family:var(--read);font-size:15px">Serif</button><button data-v="sans">Sans</button><button data-v="mono" style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px">Mono</button></div>
+    <div class="sizerow"><span style="font-size:14px">A</span><input type="range" class="range" id="sizeIn" min="14" max="28" step="1"><span style="font-size:24px">A</span></div>
+    <div class="kick">Line spacing</div>
+    <div class="seg" id="lhSeg" style="margin-bottom:6px"><i></i><button data-v="1">Single</button><button data-v="1.15">1.15</button><button data-v="1.5">1.5</button><button data-v="2">Double</button></div>
+    <div class="kick">Paragraphs</div>
+    <div class="seg" id="paraSeg" style="margin-bottom:6px"><i></i><button data-v="space">Space between</button><button data-v="indent">Indent first line</button></div>
+    <div class="kick">Appearance</div>
+    <div class="seg" id="themeSeg"><i></i><button data-v="auto">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div>
+    <p style="color:var(--muted);font-size:12.5px;line-height:1.5;padding:14px 6px 0">Typeface, spacing and paragraph style go into the exported .docx too (Serif as Times New Roman, Sans as Calibri, Mono as Courier New). Size and appearance are only for reading here.</p>
+  </div>
+</div>
+
+<!-- find & replace -->
+<div class="sheet" id="findSheet" role="dialog" aria-label="Find">
+  <div class="grab"></div>
+  <div class="sheet-head"><h2>Find</h2><button class="btn soft tap" id="caseBtn" style="min-height:34px;padding:0 12px;font-size:13px;border-radius:11px">Aa</button></div>
+  <div class="sheet-body">
+    <div class="findrow"><input class="field" id="findIn" placeholder="Find" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search"><span class="findinfo" id="findInfo"></span><button class="sq tap" id="findPrev" aria-label="Previous"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button class="sq tap" id="findNext" aria-label="Next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button></div>
+    <div class="findrow"><input class="field" id="replIn" placeholder="Replace with" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done"></div>
+    <div class="btnrow"><button class="btn tap wide" id="replOne">Replace</button><button class="btn tap wide" id="replAll">Replace all</button></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="lib/jszip.min.js"></script>
@@ -354,7 +461,7 @@ svg{display:block}
 "use strict";
 /* ======================= storage ======================= */
 const KEY="folio.v1", DOCKEY="folio.doc.";
-const DEF_SETTINGS={minutes:25,editLock:false,mode:"always",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true};
+const DEF_SETTINGS={minutes:25,editLock:false,mode:"always",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false};
 function fresh(){return {docs:[],critiques:[],sprints:[],settings:{...DEF_SETTINGS},sprint:null,timeLockUntil:0}}
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.docs){d.settings={...DEF_SETTINGS,...d.settings};return {...fresh(),...d}}}catch(e){}return fresh()})();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save: storage is full")}}
@@ -388,7 +495,7 @@ function toast(msg,btn,fn){const t=$("#toast");t.innerHTML=esc(msg)+(btn?' <butt
 /* ======================= sheets ======================= */
 let openSheet=null;
 function showSheet(el){if(openSheet&&openSheet!==el)hideSheet(true);const sc=$("#scrim");sc.hidden=false;requestAnimationFrame(()=>{sc.classList.add("show");el.classList.add("show")});openSheet=el;hap()}
-function hideSheet(quick){if(!openSheet)return;const el=openSheet;openSheet=null;el.classList.remove("show");el.style.transform="";const sc=$("#scrim");sc.classList.remove("show");if(document.activeElement&&el.contains(document.activeElement))document.activeElement.blur();setTimeout(()=>{if(!openSheet)sc.hidden=true},quick?0:300)}
+function hideSheet(quick){if(!openSheet)return;const el=openSheet;openSheet=null;if(el.id==="findSheet")clearFind();$("#scrim").classList.remove("clear");el.classList.remove("show");el.style.transform="";const sc=$("#scrim");sc.classList.remove("show");if(document.activeElement&&el.contains(document.activeElement))document.activeElement.blur();setTimeout(()=>{if(!openSheet)sc.hidden=true},quick?0:300)}
 $("#scrim").onclick=()=>hideSheet();
 // drag a sheet down by its grabber or header to dismiss it
 document.querySelectorAll(".sheet").forEach(sh=>{let y0=null,dy=0;
@@ -420,7 +527,10 @@ $("#newBtn").onclick=()=>{hap();tick();const d=newDoc("Untitled","<p><br></p>");
 $("#openBtn").onclick=()=>{hap();$("#file").click()};
 $("#file").onchange=async e=>{const f=e.target.files[0];e.target.value="";if(!f)return;
   if(!/\.docx$/i.test(f.name)){toast("Folio opens .docx files only");return}
-  try{toast("Opening…");await loadMammoth();const r=await mammoth.convertToHtml({arrayBuffer:await f.arrayBuffer()},{ignoreEmptyParagraphs:false});
+  try{toast("Opening…");await loadMammoth();const AL={center:"center",right:"right",end:"right",both:"justify",distribute:"justify"};
+    const r=await mammoth.convertToHtml({arrayBuffer:await f.arrayBuffer()},{ignoreEmptyParagraphs:false,
+      styleMap:["p[style-name='FolioAlign-center'] => p.al-center:fresh","p[style-name='FolioAlign-right'] => p.al-right:fresh","p[style-name='FolioAlign-justify'] => p.al-justify:fresh","u => u","strike => s","p[style-name='Quote'] => blockquote > p:fresh","p[style-name='FolioH1-center'] => h1.al-center:fresh","p[style-name='FolioH1-right'] => h1.al-right:fresh","p[style-name='FolioH1-justify'] => h1.al-justify:fresh","p[style-name='FolioH2-center'] => h2.al-center:fresh","p[style-name='FolioH2-right'] => h2.al-right:fresh","p[style-name='FolioH2-justify'] => h2.al-justify:fresh","p[style-name='FolioH3-center'] => h3.al-center:fresh","p[style-name='FolioH3-right'] => h3.al-right:fresh","p[style-name='FolioH3-justify'] => h3.al-justify:fresh","p[style-name='Intense Quote'] => blockquote > p:fresh"],
+      transformDocument:mammoth.transforms.paragraph(el=>{const m=AL[el.alignment];if(!m||el.numbering)return el;const h=/^heading ([1-3])$/i.exec(el.styleName||"");if(h)return {...el,styleName:"FolioH"+h[1]+"-"+m};if(/heading|title|quote/i.test(el.styleName||""))return el;return {...el,styleName:"FolioAlign-"+m}})});
     const html=clean(r.value)||"<p><br></p>";const d=newDoc(f.name.replace(/\.docx$/i,""),html);d.fileName=f.name;save();openDoc(d.id);
     const lost=r.messages.some(m=>/image/i.test(m.message))||/<img/i.test(r.value);toast(lost?"Opened. Images were left out.":"Opened "+f.name)}
   catch(err){console.error(err);toast("Couldn't read that file")}};
@@ -432,20 +542,20 @@ function docActions(id){const d=S.docs.find(x=>x.id===id);if(!d)return;$("#actH"
   $("#actBody").innerHTML=`<div class="acts"><button data-a="share"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3.5M7.5 8L12 3.5 16.5 8"/><path d="M8 11H6.5A2.5 2.5 0 0 0 4 13.5v4A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-4a2.5 2.5 0 0 0-2.5-2.5H16"/></svg>Export .docx</button><button data-a="dup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8"/></svg>Duplicate</button><button data-a="del" class="danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4.5 7h15M9.5 7V5h5v2M6.5 7l1 12.5h9l1-12.5"/></svg>Delete</button></div>`;
   $("#actBody").onclick=e=>{const b=e.target.closest("[data-a]");if(!b)return;const a=b.dataset.a;
     if(a==="share"){exportDoc(d)}
-    else if(a==="dup"){hideSheet();newDoc(d.title+" copy",getHtml(d.id));renderShelf();toast("Duplicated")}
+    else if(a==="dup"){hideSheet();const c2=newDoc(d.title+" copy",getHtml(d.id));if(d.fmt){c2.fmt={...d.fmt};save()}renderShelf();toast("Duplicated")}
     else if(a==="del"){if(b.dataset.sure){hideSheet();S.docs=S.docs.filter(x=>x!==d);try{localStorage.removeItem(DOCKEY+d.id)}catch(e){}if(S.sprint&&S.sprint.docId===d.id)S.sprint=null;save();renderShelf();thud();toast("Deleted")}else{b.dataset.sure=1;b.lastChild.textContent="Tap again to delete for good";hap()}}};
   showSheet($("#actSheet"))}
 
 $("#shelfSettings").onclick=()=>{$("#actH").textContent="Settings";
-  $("#actBody").innerHTML=`<div class="group"><div class="row"><div class="lbl">Sounds<small>Bell at the end of a sprint, soft clicks on controls.</small></div><button class="sw" id="swSound"></button></div><div class="row"><div class="lbl">Haptics<small>Small taps on iPhone when you press things.</small></div><button class="sw" id="swHap"></button></div></div><p style="color:var(--muted);font-size:13px;padding:0 6px;line-height:1.5">Your pages live on this iPhone, inside Folio. To keep a copy in Files or send one to Word, use Export .docx.</p>`;
+  $("#actBody").innerHTML=`<div class="group"><div class="row"><div class="lbl">Sounds<small>Bell at the end of a sprint, soft clicks on controls.</small></div><button class="sw" id="swSound"></button></div><div class="row"><div class="lbl">Haptics<small>Small taps on iPhone when you press things.</small></div><button class="sw" id="swHap"></button></div></div><div class="kick">Appearance</div><div class="seg" id="themeSeg2" style="margin-bottom:14px"><i></i><button data-v="auto">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div><p style="color:var(--muted);font-size:13px;padding:0 6px;line-height:1.5">Your pages live on this iPhone, inside Folio. To keep a copy in Files or send one to Word, use Export .docx.</p>`;
   $("#actBody").onclick=null;
   sw($("#swSound"),S.settings.sound,v=>{S.settings.sound=v;save()});sw($("#swHap"),S.settings.haptics,v=>{S.settings.haptics=v;save()});
-  showSheet($("#actSheet"))};
+  showSheet($("#actSheet"));requestAnimationFrame(()=>seg($("#themeSeg2"),S.settings.theme,setTheme))};
 
 /* ======================= editor ======================= */
 function openDoc(id,focus){const d=S.docs.find(x=>x.id===id);if(!d)return;cur=d;
   ed.innerHTML=getHtml(id)||"<p><br></p>";$("#title").value=d.title||"";
-  $("#shelf").hidden=true;$("#editor").hidden=false;$("#scroll").scrollTop=0;
+  $("#shelf").hidden=true;$("#editor").hidden=false;$("#scroll").scrollTop=0;applyText();
   refreshWords();paintAll();if(focus)setTimeout(()=>{ed.focus();placeCaretEnd()},60)}
 function placeCaretEnd(){const r=document.createRange();r.selectNodeContents(ed);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}
 $("#back").onclick=()=>{flush();hap();ed.blur();cur=null;$("#editor").hidden=true;$("#shelf").hidden=false;renderShelf()};
@@ -461,22 +571,105 @@ window.addEventListener("pagehide",flush);document.addEventListener("visibilityc
 let liveWords=0;
 function refreshWords(){liveWords=countWords(ed.innerText||"");let s=liveWords.toLocaleString()+" words";if(S.sprint&&cur&&S.sprint.docId===cur.id){const g=liveWords-S.sprint.wordsStart;s=`<b>${g>=0?"+":""}${g.toLocaleString()}</b> · `+s}$("#words").innerHTML=s}
 
-/* formatting bar shows while you're typing */
+/* ======================= formatting ======================= */
+let savedRange=null;
+function saveSel(){const s=getSelection();if(s.rangeCount&&ed.contains(s.anchorNode))savedRange=s.getRangeAt(0).cloneRange()}
+function restoreSel(){ed.focus({preventScroll:true});if(savedRange&&ed.contains(savedRange.startContainer)){const s=getSelection();s.removeAllRanges();s.addRange(savedRange)}}
 ed.addEventListener("focus",()=>{$("#fmt").hidden=false;paintFmt()});
-ed.addEventListener("blur",()=>setTimeout(()=>{if(document.activeElement!==ed)$("#fmt").hidden=true},120));
-document.addEventListener("selectionchange",()=>{if(document.activeElement===ed)paintFmt()});
-function blockOf(n){while(n&&n!==ed){if(n.nodeType===1&&/^(P|DIV|H1|H2|H3|LI)$/.test(n.tagName))return n;n=n.parentNode}return null}
+ed.addEventListener("blur",()=>{saveSel();setTimeout(()=>{if(document.activeElement!==ed){$("#fmt").hidden=true;showPanel("main")}},150)});
+document.addEventListener("selectionchange",()=>{if(document.activeElement===ed){saveSel();paintFmt()}});
+const BLOCKS="P,DIV,H1,H2,H3,LI,BLOCKQUOTE".split(",");
+function blockOf(n){while(n&&n!==ed){if(n.nodeType===1&&BLOCKS.includes(n.tagName))return n;n=n.parentNode}return null}
+function blocksInSel(){const s=getSelection();if(!s.rangeCount)return[];const r=s.getRangeAt(0);
+  const out=[...ed.querySelectorAll("p,div,h1,h2,h3,li,blockquote")].filter(b=>!b.querySelector("p,div,h1,h2,h3,li,blockquote")&&r.intersectsNode(b));
+  if(!out.length){const b=blockOf(s.anchorNode);if(b)out.push(b)}return out}
+function alignOf(b){for(let e=b;e&&e!==ed;e=e.parentNode){const a=(e.style&&e.style.textAlign)||(e.getAttribute&&e.getAttribute("align"));if(a)return a==="start"?"left":a==="end"?"right":a}return "left"}
+function styleOf(b){if(!b)return "p";if(b.closest("blockquote"))return "blockquote";return /^H[1-3]$/.test(b.tagName)?b.tagName.toLowerCase():"p"}
+const STYLE_NAMES={p:"Body",h1:"Heading 1",h2:"Heading 2",h3:"Heading 3",blockquote:"Quote"};
+function showPanel(n){document.querySelectorAll("#fmt .fpanel").forEach(p=>p.hidden=p.dataset.panel!==n);paintFmt()}
 function paintFmt(){const q=c=>{try{return document.queryCommandState(c)}catch(e){return false}};const s=getSelection();const b=s.rangeCount?blockOf(s.anchorNode):null;
-  const st={bold:q("bold"),italic:q("italic"),underline:q("underline"),heading:!!b&&/^H/.test(b.tagName),list:!!b&&b.tagName==="LI"};
-  document.querySelectorAll("#fmt [data-cmd]").forEach(x=>x.classList.toggle("on",!!st[x.dataset.cmd]))}
-$("#fmt").addEventListener("pointerdown",e=>{if(e.target.closest("[data-cmd]"))e.preventDefault()}); // keep the keyboard up
-$("#fmt").addEventListener("click",e=>{const b=e.target.closest("[data-cmd]");if(!b)return;const c=b.dataset.cmd;tick();
+  const st=styleOf(b),al=alignOf(b),ul=!!b&&!!b.closest("ul"),ol=!!b&&!!b.closest("ol");
+  const on={bold:q("bold"),italic:q("italic"),underline:q("underline"),strikeThrough:q("strikeThrough"),insertUnorderedList:ul,insertOrderedList:ol};
+  document.querySelectorAll("#fmt [data-cmd]").forEach(x=>x.classList.toggle("on",!!on[x.dataset.cmd]));
+  document.querySelectorAll("#fmt [data-block]").forEach(x=>x.classList.toggle("on",x.dataset.block===st));
+  document.querySelectorAll("#fmt [data-align]").forEach(x=>x.classList.toggle("on",x.dataset.align===al));
+  $("#styleLbl").textContent=STYLE_NAMES[st];
+  const ab=$("#alignBtn"),src=document.querySelector(`#fmt [data-align="${al}"]`);if(src&&ab.dataset.al!==al){ab.innerHTML=src.innerHTML;ab.dataset.al=al}ab.classList.toggle("on",al!=="left");
+  const lb=$("#listBtn"),want=ol?"insertOrderedList":"insertUnorderedList";if(lb.dataset.k!==want){lb.innerHTML=document.querySelector(`#fmt [data-cmd="${want}"]`).innerHTML;lb.dataset.k=want}lb.classList.toggle("on",ul||ol)}
+function applyAlign(blocks,a){blocks.forEach(x=>{if(!x)return;x.removeAttribute("align");x.style.textAlign=a==="left"?"":a;if(!x.getAttribute("style"))x.removeAttribute("style")})}
+function unwrapQuote(bq){const kids=[...bq.childNodes];const hasBlock=kids.some(k=>k.nodeType===1&&BLOCKS.includes(k.tagName));let first;
+  if(hasBlock){kids.forEach(k=>bq.before(k));first=kids.find(k=>k.nodeType===1)}else{const p=document.createElement("p");kids.forEach(k=>p.appendChild(k));if(!p.firstChild)p.innerHTML="<br>";bq.before(p);first=p}
+  bq.remove();if(first){const r=document.createRange();r.selectNodeContents(first);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}}
+$("#fmt").addEventListener("pointerdown",e=>{if(e.target.closest("button"))e.preventDefault()}); // keep the keyboard up
+$("#fmt").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;tick();
+  if(b.dataset.p){showPanel(b.dataset.p);return}
+  const c=b.dataset.cmd;
   if(c==="done"){ed.blur();return}
-  if(timeLocked())return;
-  if(c==="heading"){const blk=blockOf(getSelection().anchorNode);const t=blk?blk.tagName:"P";const next=t==="H1"?"h2":t==="H2"?"p":"h1";document.execCommand("formatBlock",false,next)}
-  else if(c==="list")document.execCommand("insertUnorderedList");
+  if(c==="find")return openFind();if(c==="page")return openText();if(c==="stats")return openStats();
+  if(timeLocked())return nope();
+  if(document.activeElement!==ed)restoreSel();
+  if(c==="undo"||c==="redo"){if(editBlocking())return nope();document.execCommand(c)}
+  else if(c==="scene"){const blk=blockOf(getSelection().anchorNode);if(blk&&blk.textContent.trim())document.execCommand("insertParagraph");document.execCommand("insertText",false,"*   *   *");applyAlign([blockOf(getSelection().anchorNode)],"center");document.execCommand("insertParagraph");applyAlign([blockOf(getSelection().anchorNode)],"left");showPanel("main")}
+  else if(b.dataset.block){const v=b.dataset.block,blk=blockOf(getSelection().anchorNode),bq=blk&&blk.closest("blockquote");
+    if(bq)unwrapQuote(bq);
+    if(!(bq&&v==="blockquote"))document.execCommand("formatBlock",false,v);
+    showPanel("main")}
+  else if(b.dataset.align)applyAlign(blocksInSel(),b.dataset.align);
+  else if(c==="indent"||c==="outdent"){const bl=blocksInSel();
+    if(bl.some(x=>x.closest("li")))document.execCommand(c);
+    else bl.forEach(x=>{const n=Math.max(0,Math.min(8,(+x.dataset.ind||0)+(c==="indent"?1:-1)));if(n){x.dataset.ind=n;x.style.marginLeft=(n*1.6)+"em"}else{delete x.dataset.ind;x.style.marginLeft="";if(!x.getAttribute("style"))x.removeAttribute("style")}})}
   else document.execCommand(c);
   paintFmt();ed.dispatchEvent(new Event("input"))});
+
+/* ======================= text settings & theme ======================= */
+const LH_SHOW={"1":1.3,"1.15":1.5,"1.5":1.85,"2":2.3};
+const docFmt=()=>({font:"serif",lh:"1.15",para:"space",...(cur&&cur.fmt||{})});
+function applyText(){const f=docFmt();ed.className="ed "+f.font+(f.para==="indent"?" indent":"");ed.style.setProperty("--fs",S.settings.fs+"px");ed.style.setProperty("--lh",LH_SHOW[f.lh]||1.5)}
+function setDocFmt(k,v){if(!cur)return;cur.fmt={...docFmt(),[k]:v};cur.updated=now();save();applyText()}
+function setTheme(v){S.settings.theme=v;save();applyTheme()}
+function applyTheme(){const t=S.settings.theme,root=document.documentElement;if(t==="auto")delete root.dataset.theme;else root.dataset.theme=t;
+  const dark=t==="dark"||(t==="auto"&&matchMedia("(prefers-color-scheme: dark)").matches);
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>m.setAttribute("content",dark?"#161513":"#f3efe8"))}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTheme);
+function openText(){saveSel();showSheet($("#textSheet"));const f=docFmt();
+  requestAnimationFrame(()=>{seg($("#fontSeg"),f.font,v=>setDocFmt("font",v));seg($("#lhSeg"),f.lh,v=>setDocFmt("lh",v));seg($("#paraSeg"),f.para,v=>setDocFmt("para",v));seg($("#themeSeg"),S.settings.theme,setTheme)});
+  $("#sizeIn").value=S.settings.fs}
+$("#sizeIn").addEventListener("input",e=>{const v=+e.target.value;if(v!==S.settings.fs){S.settings.fs=v;tick();applyText()}});
+$("#sizeIn").addEventListener("change",()=>{save();hap()});
+
+/* ======================= stats ======================= */
+function openStats(){flush();const t=ed.innerText||"";const w=countWords(t);const paras=[...ed.querySelectorAll("p,div,h1,h2,h3,li")].filter(b=>!b.querySelector("p,div,h1,h2,h3,li")&&b.textContent.trim()).length;
+  const sp=cur?S.sprints.filter(x=>x.docId===cur.id):[];const spw=sp.reduce((a,x)=>a+Math.max(0,x.words),0);
+  const st=(n,l)=>`<div class="stat"><b>${n}</b><small>${l}</small></div>`;
+  $("#actH").textContent="Count";$("#actBody").onclick=null;
+  $("#actBody").innerHTML=`<div class="stats">${st(w.toLocaleString(),"words")}${st(t.replace(/\n/g,"").length.toLocaleString(),"characters")}${st(t.replace(/\s/g,"").length.toLocaleString(),"without spaces")}${st(paras.toLocaleString(),"paragraphs")}${st(Math.max(1,Math.round(w/230))+" min","reading time")}${st(sp.length,"sprints here")}</div><p style="color:var(--muted);font-size:13px;padding:14px 6px 0">${spw.toLocaleString()} words written during sprints on this page.</p>`;
+  showSheet($("#actSheet"))}
+$("#words").onclick=()=>{if(cur){tick();openStats()}};
+
+/* ======================= find & replace ======================= */
+let hits=[],hitI=0,findCase=false;
+function openFind(){saveSel();const sel=savedRange&&!savedRange.collapsed?savedRange.toString():"";$("#scrim").classList.add("clear");showSheet($("#findSheet"));
+  const fi=$("#findIn");if(sel&&sel.length<80)fi.value=sel;fi.focus();fi.select();runFind(true)}
+function findAll(q){const res=[];if(!q)return res;const w=document.createTreeWalker(ed,NodeFilter.SHOW_TEXT);const nq=findCase?q:q.toLowerCase();let n;
+  while((n=w.nextNode())){const t=findCase?n.nodeValue:n.nodeValue.toLowerCase();let i=0;while((i=t.indexOf(nq,i))>=0){const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+q.length);res.push(r);i+=q.length}}return res}
+function runFind(keep){const q=$("#findIn").value;hits=findAll(q);if(!keep||hitI>=hits.length)hitI=0;
+  if(!keep&&hits.length&&savedRange){const k=hits.findIndex(h=>h.compareBoundaryPoints(Range.START_TO_START,savedRange)>=0);if(k>=0)hitI=k}
+  paintHits()}
+function paintHits(){const info=$("#findInfo");info.textContent=!$("#findIn").value?"":hits.length?`${hitI+1} of ${hits.length}`:"None";
+  if(window.CSS&&CSS.highlights){CSS.highlights.set("folio-find",new Highlight(...hits));const c=hits[hitI];if(c)CSS.highlights.set("folio-cur",new Highlight(c));else CSS.highlights.delete("folio-cur")}
+  const c=hits[hitI];if(c){const rc=c.getBoundingClientRect(),sc=$("#scroll"),top=sc.getBoundingClientRect().top;const sheetTop=$("#findSheet").getBoundingClientRect().top;
+    if(rc.top<top+20||rc.bottom>sheetTop-20)sc.scrollBy({top:rc.top-top-90,behavior:"smooth"})}}
+function clearFind(){hits=[];if(window.CSS&&CSS.highlights){CSS.highlights.delete("folio-find");CSS.highlights.delete("folio-cur")}}
+$("#findIn").addEventListener("input",()=>runFind(false));
+$("#findIn").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();step(1)}});
+$("#replIn").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("#replIn").blur()}});
+function step(d){if(!hits.length)return;hitI=(hitI+d+hits.length)%hits.length;tick();paintHits()}
+$("#findNext").onclick=()=>step(1);$("#findPrev").onclick=()=>step(-1);
+$("#caseBtn").onclick=()=>{findCase=!findCase;$("#caseBtn").classList.toggle("gold",findCase);tick();runFind(true)};
+function canReplace(){if(timeLocked()){nope();toast("Time lock is on");return false}if(editBlocking()){nope();toast("Edit lock is on, so replacing is off");return false}return true}
+function replaceRange(r,t){r.deleteContents();if(t)r.insertNode(document.createTextNode(t))}
+$("#replOne").onclick=()=>{if(!hits.length||!canReplace())return;replaceRange(hits[hitI],$("#replIn").value);ed.normalize();ed.dispatchEvent(new Event("input"));hap();tick();runFind(true)};
+$("#replAll").onclick=()=>{if(!hits.length||!canReplace())return;const n=hits.length,t=$("#replIn").value;for(let i=hits.length-1;i>=0;i--)replaceRange(hits[i],t);ed.normalize();ed.dispatchEvent(new Event("input"));hap();chime();toast(`Replaced ${n}`);runFind(false)};
 
 /* keep the caret above the dock + keyboard */
 function keepCaretVisible(){const s=getSelection();if(!s.rangeCount)return;const r=s.getRangeAt(0).cloneRange();let rect=r.getClientRects()[0];if(!rect){const b=blockOf(s.anchorNode);rect=b&&b.getBoundingClientRect()}if(!rect)return;
@@ -548,7 +741,17 @@ $("#startBtn").onclick=startSprint;
 $("#endBtn").onclick=()=>{const b=$("#endBtn");if(b.dataset.sure){delete b.dataset.sure;b.textContent="End sprint";hideSheet();finishSprint(false)}else{b.dataset.sure=1;b.textContent="Tap to confirm";hap();setTimeout(()=>{delete b.dataset.sure;b.textContent="End sprint"},2500)}};
 $("#plus5").onclick=()=>{if(!S.sprint)return;S.sprint.endsAt+=5*60000;S.sprint.minutes+=5;save();tick();hap();paintAll()};
 $("#pill").onclick=()=>{flush();openSprintSheet(false)};
-$("#lockBtn").onclick=()=>openSprintSheet(true);
+(()=>{const lb=$("#lockBtn");let t=null,held=false;
+  lb.addEventListener("pointerdown",e=>{e.preventDefault();held=false;t=setTimeout(()=>{t=null;held=true;hap();ed.blur();openSprintSheet(true)},480)});
+  lb.addEventListener("pointerup",()=>{if(t){clearTimeout(t);t=null;if(!held)toggleEditLock()}});
+  ["pointerleave","pointercancel"].forEach(ev=>lb.addEventListener(ev,()=>{if(t){clearTimeout(t);t=null}}));
+  lb.addEventListener("contextmenu",e=>e.preventDefault());
+  lb.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggleEditLock()}})})();
+function toggleEditLock(){const st=S.settings;st.editLock=!st.editLock;save();loopTick(true);tick();hap();
+  const name={always:"always",sprints:"during sprints",loop:`${st.loopLock} on, ${st.loopFree} off`}[st.mode];
+  if(st.editLock)toast(`Edit lock on, ${name}`+(st.lockTip?"":". Hold the lock for settings."));else toast("Edit lock off");
+  if(st.editLock&&!st.lockTip){st.lockTip=true;save()}
+  if(openSheet===$("#sprintSheet"))paintSprintSheet();paintAll()}
 function openSprintSheet(toLocks){paintSprintSheet();showSheet($("#sprintSheet"));if(toLocks)setTimeout(()=>$("#locksKick").scrollIntoView({behavior:"smooth",block:"start"}),200);else $("#sprintSheet .sheet-body").scrollTop=0}
 
 /* the dial: wind it like a kitchen timer. One turn = 60 minutes; keep turning for more. */
@@ -653,12 +856,14 @@ setInterval(loop,250);
 function clean(html){const t=document.createElement("template");t.innerHTML=html;const out=document.createElement("div");
   const inl=(node,par)=>{for(const c of [...node.childNodes]){if(c.nodeType===3){par.appendChild(document.createTextNode(c.nodeValue));continue}if(c.nodeType!==1)continue;const g=c.tagName;
       if(g==="BR"){par.appendChild(document.createElement("br"));continue}if(g==="UL"||g==="OL"||g==="IMG"||g==="TABLE")continue;
-      const w=g==="STRONG"||g==="B"?"b":g==="EM"||g==="I"?"i":g==="U"?"u":null;if(w){const x=document.createElement(w);inl(c,x);par.appendChild(x)}else inl(c,par)}};
-  const mk=(tag,src)=>{const e=document.createElement(tag);inl(src,e);if(!e.textContent.trim()&&!e.querySelector("br"))e.innerHTML="<br>";return e};
+      const w=g==="STRONG"||g==="B"?"b":g==="EM"||g==="I"?"i":g==="U"?"u":g==="S"||g==="DEL"||g==="STRIKE"?"s":null;if(w){const x=document.createElement(w);inl(c,x);par.appendChild(x)}else inl(c,par)}};
+  const mk=(tag,src)=>{const e=document.createElement(tag);inl(src,e);if(!e.textContent.trim()&&!e.querySelector("br"))e.innerHTML="<br>";const m=/\bal-(center|right|justify)\b/.exec(src.className||"");if(m)e.style.textAlign=m[1];return e};
+  const list=(c,par)=>{const l=document.createElement(c.tagName.toLowerCase());for(const li of c.children){if(li.tagName==="LI"){l.appendChild(mk("li",li));for(const sub of li.querySelectorAll(":scope>ul,:scope>ol"))list(sub,l)}else if(/^(UL|OL)$/.test(li.tagName))list(li,l)}if(l.children.length)par.appendChild(l)};
   const blk=(node,par)=>{for(const c of [...node.childNodes]){if(c.nodeType===3){if(c.nodeValue.trim()){const p=document.createElement("p");p.textContent=c.nodeValue;par.appendChild(p)}continue}if(c.nodeType!==1)continue;const g=c.tagName;
       if(/^H[1-6]$/.test(g))par.appendChild(mk(g<="H3"?g.toLowerCase():"h3",c));
-      else if(g==="UL"||g==="OL"){const l=document.createElement(g.toLowerCase());for(const li of c.children){if(li.tagName!=="LI")continue;l.appendChild(mk("li",li));for(const sub of li.querySelectorAll(":scope>ul,:scope>ol")){for(const s of sub.querySelectorAll("li"))l.appendChild(mk("li",s))}}if(l.children.length)par.appendChild(l)}
-      else if(g==="P"||(g==="DIV"&&!c.querySelector("p,div,h1,h2,h3,h4,h5,h6,ul,ol,table")))par.appendChild(mk("p",c));
+      else if(g==="UL"||g==="OL")list(c,par);
+      else if(g==="BLOCKQUOTE"){const q=document.createElement("blockquote");blk(c,q);if(q.children.length)par.appendChild(q)}
+      else if(g==="P"||(g==="DIV"&&!c.querySelector("p,div,h1,h2,h3,h4,h5,h6,ul,ol,table,blockquote")))par.appendChild(mk("p",c));
       else if(g==="BR")par.appendChild(Object.assign(document.createElement("p"),{innerHTML:"<br>"}));
       else if(g==="IMG")continue;
       else blk(c,par)}};
@@ -666,33 +871,46 @@ function clean(html){const t=document.createElement("template");t.innerHTML=html
 
 const XML_BAD=/[^\x09\x0A\x0D\x20-퟿-�\u{10000}-\u{10FFFF}]/gu;
 const x=s=>String(s).replace(XML_BAD,"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function buildDocx(html,title){
+function buildDocx(html,title,fmt){
+  fmt={font:"serif",lh:"1.15",para:"space",...(fmt||{})};
   const root=document.createElement("div");root.innerHTML=html;
-  const paras=[];let ols=0;
-  const runs=(node,m,arr)=>{for(const c of node.childNodes){if(c.nodeType===3){if(c.nodeValue)arr.push({t:c.nodeValue.replace(/[\n\u00a0]/g," "),m});continue}if(c.nodeType!==1)continue;const g=c.tagName;
-      if(g==="BR"){arr.push({br:1});continue}const n={...m};const fw=c.style&&c.style.fontWeight,fs=c.style&&c.style.fontStyle,td=c.style&&c.style.textDecoration;
-      if(g==="B"||g==="STRONG"||fw==="bold"||+fw>=600)n.b=1;if(g==="I"||g==="EM"||fs==="italic")n.i=1;if(g==="U"||/underline/.test(td||""))n.u=1;
-      if(/^(P|DIV|H[1-6]|LI|UL|OL)$/.test(g)){walk(c);continue}runs(c,n,arr)}};
-  const para=(el,style,num)=>{const r=[];runs(el,{},r);while(r.length&&r[r.length-1].br)r.pop();paras.push({style,num,r})};
-  const walk=node=>{let loose=[];const flushLoose=()=>{if(loose.length){const d=document.createElement("p");loose.forEach(n=>d.appendChild(n.cloneNode(true)));para(d,null);loose=[]}};
+  const paras=[];const olLvl=[];
+  const runs=(node,m,arr)=>{for(const c of node.childNodes){if(c.nodeType===3){if(c.nodeValue)arr.push({t:c.nodeValue.replace(/[\n ]/g," "),m});continue}if(c.nodeType!==1)continue;const g=c.tagName;
+      if(g==="BR"){arr.push({br:1});continue}if(/^(P|DIV|H[1-6]|LI|UL|OL|BLOCKQUOTE)$/.test(g))continue;
+      const n={...m};const st=c.style||{},fw=st.fontWeight,td=(st.textDecoration||"")+" "+(st.textDecorationLine||"");
+      if(g==="B"||g==="STRONG"||fw==="bold"||+fw>=600)n.b=1;if(g==="I"||g==="EM"||st.fontStyle==="italic")n.i=1;if(g==="U"||/underline/.test(td))n.u=1;if(g==="S"||g==="STRIKE"||g==="DEL"||/line-through/.test(td))n.s=1;
+      runs(c,n,arr)}};
+  const alignFrom=src=>{for(let e=src;e&&e!==root;e=e.parentNode){const a=(e.style&&e.style.textAlign)||(e.getAttribute&&e.getAttribute("align"));if(a)return {center:"center",right:"right",end:"right",justify:"both"}[a]||null}return null};
+  const para=(el,style,num,lvl,src)=>{src=src||el;const r=[];runs(el,{},r);while(r.length&&r[r.length-1].br)r.pop();paras.push({style,num,lvl:lvl||0,r,jc:alignFrom(src),ind:+(src.dataset&&src.dataset.ind)||0})};
+  const list=(el,lvl)=>{let id=1;if(el.tagName==="OL"){olLvl.push(lvl);id=1+olLvl.length}
+    for(const li of el.children){if(/^(UL|OL)$/.test(li.tagName)){list(li,Math.min(8,lvl+1));continue}if(li.tagName!=="LI")continue;
+      const cl=li.cloneNode(true);cl.querySelectorAll("ul,ol").forEach(x=>x.remove());para(cl,"ListParagraph",id,lvl,li);
+      for(const sub of li.querySelectorAll(":scope>ul,:scope>ol"))list(sub,Math.min(8,lvl+1))}};
+  const walk=(node,quote)=>{let loose=[];const flushLoose=()=>{if(loose.length){const d=document.createElement("p");loose.forEach(n=>d.appendChild(n.cloneNode(true)));para(d,quote?"Quote":null,0,0,node);loose=[]}};
     for(const c of node.childNodes){const g=c.nodeType===1?c.tagName:null;
-      if(g&&/^(P|DIV)$/.test(g)){flushLoose();if(!c.childNodes.length)continue;if(c.querySelector("p,div,h1,h2,h3,ul,ol"))walk(c);else para(c,null)}
+      if(g&&/^(P|DIV)$/.test(g)){flushLoose();if(!c.childNodes.length)continue;if(c.querySelector("p,div,h1,h2,h3,ul,ol,blockquote"))walk(c,quote);else para(c,quote?"Quote":null)}
       else if(g&&/^H[1-6]$/.test(g)){flushLoose();para(c,"Heading"+Math.min(3,+g[1]))}
-      else if(g==="UL"||g==="OL"){flushLoose();const id=g==="OL"?2+(ols++):1;for(const li of c.children)para(li,"ListParagraph",id)}
+      else if(g==="BLOCKQUOTE"){flushLoose();walk(c,true)}
+      else if(g==="UL"||g==="OL"){flushLoose();list(c,0)}
       else if(g==="LI"){flushLoose();para(c,"ListParagraph",1)}
       else if(c.nodeType===3&&!c.nodeValue.trim()&&!loose.length)continue;
       else loose.push(c)}
     flushLoose()};
-  walk(root);if(!paras.length)paras.push({r:[]});
-  const rx=r=>{if(r.br)return '<w:r><w:br/></w:r>';let p="";if(r.m.b)p+="<w:b/><w:bCs/>";if(r.m.i)p+="<w:i/><w:iCs/>";if(r.m.u)p+='<w:u w:val="single"/>';return `<w:r>${p?"<w:rPr>"+p+"</w:rPr>":""}<w:t xml:space="preserve">${x(r.t)}</w:t></w:r>`};
-  const body=paras.map(p=>{let pr="";if(p.style)pr+=`<w:pStyle w:val="${p.style}"/>`;if(p.num)pr+=`<w:numPr><w:ilvl w:val="0"/><w:numId w:val="${p.num}"/></w:numPr>`;return `<w:p>${pr?"<w:pPr>"+pr+"</w:pPr>":""}${p.r.map(rx).join("")}</w:p>`}).join("");
+  walk(root,false);if(!paras.length)paras.push({r:[]});
+  const rx=r=>{if(r.br)return '<w:r><w:br/></w:r>';let p="";if(r.m.b)p+="<w:b/><w:bCs/>";if(r.m.i)p+="<w:i/><w:iCs/>";if(r.m.s)p+="<w:strike/>";if(r.m.u)p+='<w:u w:val="single"/>';return `<w:r>${p?"<w:rPr>"+p+"</w:rPr>":""}<w:t xml:space="preserve">${x(r.t)}</w:t></w:r>`};
+  const body=paras.map(p=>{let pr="";if(p.style)pr+=`<w:pStyle w:val="${p.style}"/>`;if(p.num)pr+=`<w:numPr><w:ilvl w:val="${p.lvl}"/><w:numId w:val="${p.num}"/></w:numPr>`;
+    if(p.ind&&!p.num)pr+=`<w:ind w:left="${p.ind*720}"/>`;if(p.jc)pr+=`<w:jc w:val="${p.jc}"/>`;return `<w:p>${pr?"<w:pPr>"+pr+"</w:pPr>":""}${p.r.map(rx).join("")}</w:p>`}).join("");
   const W='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
   const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${W}><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
-  const hs=(id,name,sz,extra)=>`<w:style w:type="paragraph" w:styleId="${id}"><w:name w:val="${name}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/><w:outlineLvl w:val="${+id.slice(-1)-1}"/></w:pPr><w:rPr><w:b/><w:bCs/>${extra||""}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr></w:style>`;
-  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="en-US"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>${hs("Heading1","heading 1",36)}${hs("Heading2","heading 2",30)}${hs("Heading3","heading 3",26,"<w:i/><w:iCs/>")}<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="34"/><w:qFormat/><w:pPr><w:spacing w:after="60"/><w:ind w:left="720"/><w:contextualSpacing/></w:pPr></w:style></w:styles>`;
-  const lvl=(fmt,text)=>`<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="${fmt}"/><w:lvlText w:val="${text}"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl>`;
-  let nums=`<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>`;for(let i=0;i<ols;i++)nums+=`<w:num w:numId="${2+i}"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/></w:lvlOverride></w:num>`;
-  const numbering=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering ${W}><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="singleLevel"/>${lvl("bullet","•")}</w:abstractNum><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="singleLevel"/>${lvl("decimal","%1.")}</w:abstractNum>${nums}</w:numbering>`;
+  const FONT={serif:"Times New Roman",sans:"Calibri",mono:"Courier New"}[fmt.font]||"Times New Roman";
+  const LINE=Math.round(240*(+fmt.lh||1.15));const indentMode=fmt.para==="indent";
+  const hs=(id,name,sz,extra)=>`<w:style w:type="paragraph" w:styleId="${id}"><w:name w:val="${name}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="240" w:after="120"/><w:ind w:firstLine="0"/><w:outlineLvl w:val="${+id.slice(-1)-1}"/></w:pPr><w:rPr><w:b/><w:bCs/>${extra||""}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr></w:style>`;
+  const normalPPr=indentMode?`<w:pPr><w:spacing w:after="0"/><w:ind w:firstLine="720"/></w:pPr>`:"";
+  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${FONT}" w:hAnsi="${FONT}" w:eastAsia="${FONT}" w:cs="${FONT}"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="en-US"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="${LINE}" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/>${normalPPr}</w:style>${hs("Heading1","heading 1",36)}${hs("Heading2","heading 2",30)}${hs("Heading3","heading 3",26,"<w:i/><w:iCs/>")}<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="29"/><w:qFormat/><w:pPr><w:spacing w:before="120" w:after="120"/><w:ind w:left="720" w:right="720" w:firstLine="0"/></w:pPr><w:rPr><w:i/><w:iCs/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="34"/><w:qFormat/><w:pPr><w:spacing w:after="60"/><w:ind w:left="720" w:firstLine="0"/><w:contextualSpacing/></w:pPr></w:style></w:styles>`;
+  const BUL=["•","◦","▪"],DEC=["decimal","lowerLetter","lowerRoman"];
+  const lvls=kind=>Array.from({length:9},(_,i)=>`<w:lvl w:ilvl="${i}"><w:start w:val="1"/><w:numFmt w:val="${kind==="b"?"bullet":DEC[i%3]}"/><w:lvlText w:val="${kind==="b"?BUL[i%3]:"%"+(i+1)+"."}"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="${720*(i+1)}" w:hanging="360"/></w:pPr></w:lvl>`).join("");
+  let nums=`<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>`;olLvl.forEach((l,i)=>{nums+=`<w:num w:numId="${2+i}"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="${l}"><w:startOverride w:val="1"/></w:lvlOverride></w:num>`});
+  const numbering=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering ${W}><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>${lvls("b")}</w:abstractNum><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="hybridMultilevel"/>${lvls("d")}</w:abstractNum>${nums}</w:numbering>`;
   const iso=new Date().toISOString().replace(/\.\d+Z$/,"Z");
   const core=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${x(title)}</dc:title><dc:creator>Folio</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${iso}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${iso}</dcterms:modified></cp:coreProperties>`;
   const z=new JSZip();
@@ -704,7 +922,7 @@ function buildDocx(html,title){
 
 async function exportDoc(d){if(cur===d)flush();
   const name=((d.title||"Untitled").replace(/[\\/:*?"<>|]+/g,"").trim()||"Untitled")+".docx";
-  let blob;try{blob=await buildDocx(getHtml(d.id),d.title||"Untitled")}catch(e){console.error(e);toast("Couldn't build the file");return}
+  let blob;try{blob=await buildDocx(getHtml(d.id),d.title||"Untitled",d.fmt)}catch(e){console.error(e);toast("Couldn't build the file");return}
   const file=new File([blob],name,{type:blob.type});
   const share=async()=>{try{await navigator.share({files:[file]});hideSheet()}catch(e){if(e.name==="NotAllowedError")toast("Your file is ready","Share",share);else if(e.name!=="AbortError")download()}};
   const download=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},5000);hideSheet()};
@@ -712,8 +930,8 @@ async function exportDoc(d){if(cur===d)flush();
 $("#share").onclick=()=>{if(cur){hap();exportDoc(cur)}};
 
 /* ======================= boot ======================= */
-window.Folio={S,buildDocx,clean,editBlocking,timeLocked,finishSprint,setLoopStart:t=>{loopStart=t},openDoc};
-renderShelf();kb();
+window.Folio={S,toggleEditLock,buildDocx,clean,editBlocking,timeLocked,finishSprint,setLoopStart:t=>{loopStart=t},openDoc};
+applyTheme();renderShelf();kb();
 if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
