@@ -102,6 +102,7 @@ svg{display:block}
 .ed ul,.ed ol{margin:0 0 .6em;padding-left:1.3em}
 .ed:empty::before{content:attr(data-ph);color:var(--faint);font-style:italic}
 .page.locked{filter:saturate(.7);opacity:.8}
+.page.paged.locked{opacity:.85}
 .page.locked .ed{opacity:.7}
 .page.bump{animation:bump .3s}
 @keyframes bump{30%{transform:translateX(-3px)}60%{transform:translateX(2px)}}
@@ -298,6 +299,14 @@ body.desk .scroll::-webkit-scrollbar-thumb{background:var(--press);border-radius
 body.desk .scroll::-webkit-scrollbar-track{background:transparent}
 body.desk .ed{-webkit-user-select:text}
 #share.dirty::after{content:"";position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--gold-fill)}
+/* page view: letter-size sheets drawn behind the text; spacers (never saved) push text onto the next sheet */
+.pg-sheets{display:none}
+.page.paged{background:transparent;box-shadow:none;border-radius:0;padding:0;max-width:none;width:var(--pw);min-height:0;margin:0 auto}
+.page.paged .pg-sheets{display:block;position:absolute;inset:0 0 auto 0;pointer-events:none}
+.pg-sheet{position:absolute;left:0;width:100%;height:var(--ph);background:var(--paper);border-radius:3px;box-shadow:0 0 0 1px rgba(60,44,20,.07),0 1px 2px rgba(60,44,20,.08),0 18px 40px -26px var(--shadow)}
+.pg-sheet::after{content:attr(data-n);position:absolute;left:0;right:0;bottom:calc(var(--m) * .4);text-align:center;font:500 11px var(--ui);color:var(--faint);font-variant-numeric:tabular-nums}
+.page.paged .ed{position:relative;padding:var(--m);min-height:var(--ph)}
+.pgs{display:block;-webkit-user-select:none;user-select:none;pointer-events:none;margin:0!important;padding:0!important;text-indent:0}
 @media (min-width:700px){.tlock{max-width:720px;width:calc(100% - 24px);margin-left:auto;margin-right:auto}.cards,.running,.empty{max-width:720px;margin-left:auto;margin-right:auto}.running{display:flex}.shelf-bar{max-width:752px;margin:0 auto}.shelf-head{max-width:752px;margin:0 auto;width:100%}body.desk .shelf-head{max-width:none;padding-left:calc(50% - 360px)}.page{padding:56px 64px 60vh}.dock{left:50%;right:auto;width:560px;transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){*{transition-duration:.01s!important;animation:none!important}}
 </style>
@@ -337,7 +346,7 @@ body.desk .ed{-webkit-user-select:text}
     <button class="go tap" id="brkGo" hidden></button>
   </div>
   <div class="scroll" id="scroll">
-    <article class="page" id="page"><div class="ed" id="ed" contenteditable="true" spellcheck="true" autocapitalize="sentences" data-ph="Begin anywhere."></div></article>
+    <article class="page" id="page"><div class="pg-sheets" id="sheets" aria-hidden="true"></div><div class="ed" id="ed" contenteditable="true" spellcheck="true" autocapitalize="sentences" data-ph="Begin anywhere."></div></article>
   </div>
   <div class="dock" id="dock">
     <div class="bar fmt" id="fmt" hidden>
@@ -471,9 +480,11 @@ body.desk .ed{-webkit-user-select:text}
     <div class="seg" id="lhSeg" style="margin-bottom:6px"><i></i><button data-v="1">Single</button><button data-v="1.15">1.15</button><button data-v="1.5">1.5</button><button data-v="2">Double</button></div>
     <div class="kick">Paragraphs</div>
     <div class="seg" id="paraSeg" style="margin-bottom:6px"><i></i><button data-v="space">Space between</button><button data-v="indent">Indent first line</button></div>
+    <div class="kick">Layout</div>
+    <div class="seg" id="layoutSeg" style="margin-bottom:6px"><i></i><button data-v="scroll">One long page</button><button data-v="pages">Separate pages</button></div>
     <div class="kick">Appearance</div>
     <div class="seg" id="themeSeg"><i></i><button data-v="auto">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div>
-    <p style="color:var(--muted);font-size:12.5px;line-height:1.5;padding:14px 6px 0">Typeface, spacing and paragraph style go into the exported .docx too (Serif as Times New Roman, Sans as Calibri, Mono as Courier New). Size and appearance are only for reading here.</p>
+    <p style="color:var(--muted);font-size:12.5px;line-height:1.5;padding:14px 6px 0">Typeface, spacing and paragraph style go into the exported .docx too (Serif as Times New Roman, Sans as Calibri, Mono as Courier New). Size, layout and appearance are only for reading here. Page breaks are approximate; Word lays out its own pages.</p>
   </div>
 </div>
 
@@ -495,7 +506,7 @@ body.desk .ed{-webkit-user-select:text}
 "use strict";
 /* ======================= storage ======================= */
 const KEY="folio.v1", DOCKEY="folio.doc.";
-const DEF_SETTINGS={minutes:25,editLock:false,mode:"sprints",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0,autoRestart:false,idleRest:false,after:"stop",afterMin:5,repeat:false};
+const DEF_SETTINGS={minutes:25,editLock:false,mode:"sprints",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0,autoRestart:false,idleRest:false,pages:false,after:"stop",afterMin:5,repeat:false};
 function fresh(){return {docs:[],critiques:[],sprints:[],settings:{...DEF_SETTINGS},sprint:null,timeLockUntil:0,pts:0}}
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.docs){d.settings={...DEF_SETTINGS,...d.settings};return {...fresh(),...d}}}catch(e){}return fresh()})();
 // one-time move from the old controls (Loop / Time lock / Then restart) to Edit lock + After each sprint
@@ -603,14 +614,15 @@ function openDoc(id,focus){const d=S.docs.find(x=>x.id===id);if(!d)return;cur=d;
   $("#shelf").hidden=true;$("#editor").hidden=false;$("#scroll").scrollTop=0;applyText();paintDirty();
   refreshWords();paintAll();if(focus)setTimeout(()=>{ed.focus();placeCaretEnd()},60)}
 function placeCaretEnd(){const r=document.createRange();r.selectNodeContents(ed);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r)}
-$("#back").onclick=()=>{flush();hap();ed.blur();cur=null;$("#editor").hidden=true;$("#shelf").hidden=false;renderShelf()};
+$("#back").onclick=()=>{flush();hap();ed.blur();clearSpacers();cur=null;$("#editor").hidden=true;$("#shelf").hidden=false;renderShelf()};
 $("#title").addEventListener("input",()=>{if(!cur)return;cur.title=$("#title").value.trim()||"Untitled";cur.updated=now();save()});
 $("#title").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("#title").blur()}});
 try{document.execCommand("defaultParagraphSeparator",false,"p")}catch(e){}
 
 let saveT=null;
-function flush(){if(!cur||saveT===null)return;clearTimeout(saveT);saveT=null;const h=ed.innerHTML;if(setHtml(cur.id,h)){meta(cur,h);cur.updated=now();save()}}
-ed.addEventListener("input",()=>{if(!ed.firstElementChild)ed.innerHTML="<p><br></p>",placeCaretEnd();clearTimeout(saveT);saveT=setTimeout(flush,500);refreshWords();keepCaretVisible()});
+function edHtml(){if(!ed.querySelector(".pgs"))return ed.innerHTML;const c=ed.cloneNode(true);c.querySelectorAll(".pgs").forEach(x=>x.remove());c.normalize();return c.innerHTML}
+function flush(){if(!cur||saveT===null)return;clearTimeout(saveT);saveT=null;const h=edHtml();if(setHtml(cur.id,h)){meta(cur,h);cur.updated=now();save()}}
+ed.addEventListener("input",()=>{if(!ed.querySelector("p,div:not(.pgs),h1,h2,h3,ul,ol,blockquote"))ed.innerHTML="<p><br></p>",placeCaretEnd();schedulePaginate();clearTimeout(saveT);saveT=setTimeout(flush,500);refreshWords();keepCaretVisible()});
 window.addEventListener("pagehide",flush);document.addEventListener("visibilitychange",()=>{if(document.hidden)flush();else loop()});
 
 let liveWords=0;
@@ -669,7 +681,54 @@ $("#fmt").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)
 /* ======================= text settings & theme ======================= */
 const LH_SHOW={"1":1.3,"1.15":1.5,"1.5":1.85,"2":2.3};
 const docFmt=()=>({font:"serif",lh:"1.15",para:"space",...(cur&&cur.fmt||{})});
-function applyText(){const f=docFmt();ed.className="ed "+f.font+(f.para==="indent"?" indent":"");ed.style.setProperty("--fs",S.settings.fs+"px");ed.style.setProperty("--lh",LH_SHOW[f.lh]||1.5)}
+function applyText(){const f=docFmt();ed.className="ed "+f.font+(f.para==="indent"?" indent":"");ed.style.setProperty("--fs",S.settings.fs+"px");ed.style.setProperty("--lh",LH_SHOW[f.lh]||1.5);paginate()}
+
+/* ======================= page view ======================= */
+// Letter paper (8.5 x 11 in, 1 in margins), scaled to the screen. Blocks that would cross a page edge are pushed to the next
+// page; long paragraphs are split at a line. The spacers doing this are marked .pgs and stripped before saving or exporting.
+let pgRaf=0;
+function schedulePaginate(){if(!S.settings.pages)return;cancelAnimationFrame(pgRaf);pgRaf=requestAnimationFrame(paginate)}
+function clearSpacers(){const sp=ed.querySelectorAll(".pgs");if(!sp.length)return;sp.forEach(x=>x.remove());ed.normalize()}
+function paginate(){
+  const pg=$("#page"),on=!!S.settings.pages&&!$("#editor").hidden;pg.classList.toggle("paged",!!S.settings.pages);
+  clearSpacers();if(!on){$("#sheets").innerHTML="";return}
+  const avail=$("#scroll").clientWidth-24,PW=Math.min(760,avail),PH=Math.round(PW*11/8.5),M=Math.round(PW/8.5),G=Math.max(14,Math.round(PW*.03)),P=PH+G,CH=PH-2*M;
+  pg.style.setProperty("--pw",PW+"px");pg.style.setProperty("--ph",PH+"px");pg.style.setProperty("--m",M+"px");
+  const y=el=>el.getBoundingClientRect(),base=()=>y(ed).top+M; // page 0 content starts here
+  const spacer=h=>{const d=document.createElement("span");d.className="pgs";d.contentEditable="false";d.style.height=Math.max(0,h).toFixed(2)+"px";return d};
+  const blocks=[...ed.children].filter(b=>!b.classList.contains("pgs"));
+  for(const b of blocks){
+    let q=null; // the page whose bottom edge we're checking this block against
+    for(let guard=0;guard<300;guard++){
+      const B=base(),r=y(b),top=r.top-B,bottom=r.bottom-B,p=Math.max(0,Math.floor((top+1.5)/P));
+      if(q===null){if(top-p*P>CH+.5){b.before(spacer((p+1)*P-top));continue}q=p}  // starts in a gap: move to next page
+      const end=q*P+CH;
+      if(bottom<=end+.5)break;                                                     // fits
+      const lh=parseFloat(getComputedStyle(b).lineHeight)||24;
+      if(q===p&&top>p*P+1&&(/^H[1-3]$/.test(b.tagName)||r.height<=lh*3.2)){b.before(spacer((p+1)*P-top));q=null;continue} // short block or heading: move it whole
+      const res=splitAt(b,end+B,(q+1)*P+B);
+      if(res==="first"&&q===p){b.before(spacer((p+1)*P-top));q=null;continue}   // its first line is the one crossing: move it whole
+      q++;                                              // long paragraph: break it at the line that crosses
+    }
+  }
+  const last=blocks.length?y(blocks[blocks.length-1]).bottom-base():0,n=Math.max(1,Math.floor(Math.max(0,last-1)/P)+1);
+  let h="";for(let i=0;i<n;i++)h+=`<div class="pg-sheet" style="top:${i*P}px" data-n="${n>1?i+1:""}"></div>`;$("#sheets").innerHTML=h;
+  ed.style.minHeight=(n*P-G)+"px"}
+// find the first line in block b whose bottom passes `limit` (viewport y) and push it to `nextTop` with an inline spacer
+function splitAt(b,limit,nextTop){
+  const w=document.createTreeWalker(b,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentNode.closest(".pgs")?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+  const nodes=[];let n;while((n=w.nextNode()))if(n.nodeValue.length)nodes.push(n);if(!nodes.length)return false;
+  const idx=[];let total=0;for(const t of nodes){idx.push(total);total+=t.nodeValue.length}
+  const at=k=>{let i=nodes.length-1;while(i>0&&idx[i]>k)i--;return [nodes[i],k-idx[i]]};
+  const rect=k=>{const [t,o]=at(k),rg=document.createRange();rg.setStart(t,o);rg.setEnd(t,Math.min(t.nodeValue.length,o+1));const rs=rg.getClientRects();return rs[rs.length-1]||rg.getBoundingClientRect()};
+  let lo=0,hi=total-1;if(rect(hi).bottom<=limit+.5)return false;
+  while(lo<hi){const mid=(lo+hi)>>1;if(rect(mid).bottom>limit+.5)hi=mid;else lo=mid+1}
+  const lineTop=rect(lo).top;let s0=0,s1=lo;while(s0<s1){const mid=(s0+s1)>>1;if(rect(mid).top>=lineTop-1)s1=mid;else s0=mid+1}
+  if(s0===0)return "first";
+  const [t,o]=at(s0);const tail=o>0?t.splitText(o):t;tail.before(spacer(nextTop-lineTop));return true;
+  function spacer(h){const d=document.createElement("span");d.className="pgs";d.contentEditable="false";d.style.height=Math.max(0,h).toFixed(2)+"px";return d}}
+window.addEventListener("resize",()=>schedulePaginate());
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>schedulePaginate());
 function setDocFmt(k,v){if(!cur)return;cur.fmt={...docFmt(),[k]:v};cur.updated=now();save();applyText()}
 function setTheme(v){S.settings.theme=v;save();applyTheme()}
 function applyTheme(){const t=S.settings.theme,root=document.documentElement;if(t==="auto")delete root.dataset.theme;else root.dataset.theme=t;
@@ -678,10 +737,10 @@ function applyTheme(){const t=S.settings.theme,root=document.documentElement;if(
   if(DESK)try{DESK.theme(dark)}catch(e){}}
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change",applyTheme);
 function openText(){saveSel();showSheet($("#textSheet"));const f=docFmt();
-  requestAnimationFrame(()=>{seg($("#fontSeg"),f.font,v=>setDocFmt("font",v));seg($("#lhSeg"),f.lh,v=>setDocFmt("lh",v));seg($("#paraSeg"),f.para,v=>setDocFmt("para",v));seg($("#themeSeg"),S.settings.theme,setTheme)});
+  requestAnimationFrame(()=>{seg($("#fontSeg"),f.font,v=>setDocFmt("font",v));seg($("#lhSeg"),f.lh,v=>setDocFmt("lh",v));seg($("#paraSeg"),f.para,v=>setDocFmt("para",v));seg($("#themeSeg"),S.settings.theme,setTheme);seg($("#layoutSeg"),S.settings.pages?"pages":"scroll",v=>{S.settings.pages=v==="pages";save();paginate()})});
   $("#sizeIn").value=S.settings.fs}
 $("#sizeIn").addEventListener("input",e=>{const v=+e.target.value;if(v!==S.settings.fs){S.settings.fs=v;tick();applyText()}});
-$("#sizeIn").addEventListener("change",()=>{save();hap()});
+$("#sizeIn").addEventListener("change",()=>{save();hap();paginate()});
 
 /* ======================= stats ======================= */
 function openStats(){flush();const t=ed.innerText||"";const w=countWords(t);const paras=[...ed.querySelectorAll("p,div,h1,h2,h3,li")].filter(b=>!b.querySelector("p,div,h1,h2,h3,li")&&b.textContent.trim()).length;
