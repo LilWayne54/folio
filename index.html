@@ -431,6 +431,7 @@ body.desk .ed{-webkit-user-select:text}
       <p class="help" id="afterHelp"></p>
       <div class="loopline" id="afterLine">For <input class="num" id="afterMin" type="number" inputmode="numeric" min="1" max="360"> min</div>
       <div class="row" id="repeatRow"><div class="lbl">Repeat<small id="repeatHelp">Then start the next sprint by itself.</small></div><button class="sw" role="switch" id="swRepeat" aria-checked="false" aria-label="Repeat"></button></div>
+      <div class="row"><div class="lbl">Rest between sprints<small>Writing stays locked whenever a sprint isn't running. Starting a sprint unlocks it. Critiques stay open.</small></div><button class="sw" role="switch" id="swIdle" aria-checked="false" aria-label="Rest between sprints"></button></div>
     </div>
   </div>
 </div>
@@ -494,7 +495,7 @@ body.desk .ed{-webkit-user-select:text}
 "use strict";
 /* ======================= storage ======================= */
 const KEY="folio.v1", DOCKEY="folio.doc.";
-const DEF_SETTINGS={minutes:25,editLock:false,mode:"sprints",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0,autoRestart:false,after:"stop",afterMin:5,repeat:false};
+const DEF_SETTINGS={minutes:25,editLock:false,mode:"sprints",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0,autoRestart:false,idleRest:false,after:"stop",afterMin:5,repeat:false};
 function fresh(){return {docs:[],critiques:[],sprints:[],settings:{...DEF_SETTINGS},sprint:null,timeLockUntil:0,pts:0}}
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.docs){d.settings={...DEF_SETTINGS,...d.settings};return {...fresh(),...d}}}catch(e){}return fresh()})();
 // one-time move from the old controls (Loop / Time lock / Then restart) to Edit lock + After each sprint
@@ -613,7 +614,7 @@ ed.addEventListener("input",()=>{if(!ed.firstElementChild)ed.innerHTML="<p><br><
 window.addEventListener("pagehide",flush);document.addEventListener("visibilitychange",()=>{if(document.hidden)flush();else loop()});
 
 let liveWords=0;
-function refreshWords(){liveWords=countWords(ed.innerText||"");let s=liveWords.toLocaleString()+" words";if(S.sprint&&cur&&S.sprint.docId===cur.id){const g=liveWords-S.sprint.wordsStart;s=`<b>${g>=0?"+":""}${g.toLocaleString()}</b> · `+s}$("#words").innerHTML=s}
+function refreshWords(){liveWords=countWords(ed.innerText||"");let s=liveWords.toLocaleString()+(liveWords===1?" word":" words");if(S.sprint&&cur&&S.sprint.docId===cur.id){const g=liveWords-S.sprint.wordsStart;s=`<b>${g>=0?"+":""}${g.toLocaleString()}</b> · `+s}$("#words").innerHTML=s}
 
 /* ======================= formatting ======================= */
 let savedRange=null;
@@ -778,13 +779,14 @@ function editBlocking(){const st=S.settings;if(!st.editLock||editBreak())return 
 /* ======================= after each sprint: rest or edit ======================= */
 // Rest = writing is locked (the old time lock). Edit = the edit lock lifts so you can revise.
 const brkOn=k=>!!S.brk&&S.brk.kind===k&&S.brk.until>now();
-const timeLocked=()=>brkOn("rest");
+const idleRest=()=>S.settings.idleRest&&!S.sprint&&!editBreak()&&!brkOn("rest");
+const timeLocked=()=>brkOn("rest")||idleRest();
 const editBreak=()=>brkOn("edit");
 function startBreak(docId){const st=S.settings;if(st.after!=="rest"&&st.after!=="edit")return;
   S.brk={kind:st.after,until:now()+st.afterMin*60000,docId:docId||null};save();if(st.after==="rest")ed.blur();paintAll()}
 function endBreak(msg){S.brk=null;save();paintAll();if(msg){chime();toast(msg)}}
 function nextSprint(docId){const doc=docId&&S.docs.find(x=>x.id===docId);if(!doc)return false;if(!cur||cur.id!==doc.id){flush();openDoc(doc.id)}startSprint();toast(`Next sprint: ${S.settings.minutes} min. Go.`);return true}
-$("#brkGo").onclick=()=>{const b=S.brk;if(!b)return;hap();if(S.settings.repeat){endBreak();nextSprint(b.docId)}else endBreak("Editing time ended")};
+$("#brkGo").onclick=()=>{if(idleRest()){hap();openSprintSheet(false);return}const b=S.brk;if(!b)return;hap();if(S.settings.repeat){endBreak();nextSprint(b.docId)}else endBreak("Editing time ended")};
 // hold for 3 seconds to break the lock early
 (()=>{const h=$("#hold"),f=$("#holdFill");let raf=0,t0=0,lastQ=-1;
   const stop=()=>{cancelAnimationFrame(raf);raf=0;f.style.transition="transform .3s";f.style.transform="scaleX(0)";lastQ=-1};
@@ -794,7 +796,7 @@ $("#brkGo").onclick=()=>{const b=S.brk;if(!b)return;hap();if(S.settings.repeat){
   h.addEventListener("contextmenu",e=>e.preventDefault())})();
 
 /* ======================= sprint ======================= */
-function startSprint(){if(!cur)return;if(timeLocked()){toast("Resting. Hold to unlock to start early.");return}if(S.brk)S.brk=null;
+function startSprint(){if(!cur)return;if(brkOn("rest")){toast("Resting. Hold to unlock to start early.");return}if(S.brk)S.brk=null;
   flush();const m=S.settings.minutes;S.sprint={id:uid(),docId:cur.id,startedAt:now(),endsAt:now()+m*60000,minutes:m,wordsStart:liveWords};save();
   hap();chime();hideSheet();paintAll();refreshWords();setTimeout(()=>{ed.focus()},350)}
 function finishSprint(natural){const sp=S.sprint;if(!sp)return;flush();
@@ -850,6 +852,7 @@ function paintSprintSheet(){const st=S.settings,run=!!S.sprint;
   dialVal=st.minutes;paintDial();
   sw($("#swEdit"),st.editLock,v=>{st.editLock=v;save();paintLocks();paintAll()});
   sw($("#swRepeat"),st.repeat,v=>{st.repeat=v;save();paintLocks()});
+  sw($("#swIdle"),st.idleRest,v=>{st.idleRest=v;save();paintAll();toast(v?"Writing is locked between sprints":"Writing is open between sprints")});
   $("#ptsMax").value=st.ptsMax;$("#afterMin").value=st.afterMin;paintPts();
   paintLocks();requestAnimationFrame(()=>{seg($("#modeSeg"),st.mode,v=>{st.mode=v;save();paintLocks();paintAll()});seg($("#afterSeg"),st.after,v=>{st.after=v;save();paintLocks()})})}
 const AFTER_HELP={stop:"The sprint just ends.",rest:"Writing is locked for a while, so you step away. Critiques stay open. Hold to unlock early.",edit:"The edit lock lifts so you can delete and revise. Then it comes back with the next sprint."};
@@ -900,7 +903,7 @@ function paintAll(){
   // sprint pill
   const pill=$("#pill");pill.classList.toggle("on",!!run);
   if(run){const left=run.endsAt-now(),tot=run.endsAt-run.startedAt;$("#pillLbl").textContent=fmtT(left)+(mine?"":" ·");$("#pillArc").setAttribute("stroke-dashoffset",72.26*(1-Math.min(1,(tot-left)/tot)));$("#pillDot").setAttribute("fill","var(--gold-fill)")}
-  else{$("#pillLbl").textContent=timeLocked()?"Rest "+fmtT(S.brk.until-now()):editBreak()?"Edit "+fmtT(S.brk.until-now()):"Sprint";$("#pillArc").setAttribute("stroke-dashoffset",72.26);$("#pillDot").setAttribute("fill","var(--faint)")}
+  else{$("#pillLbl").textContent=idleRest()?"Resting":timeLocked()?"Rest "+fmtT(S.brk.until-now()):editBreak()?"Edit "+fmtT(S.brk.until-now()):"Sprint";$("#pillArc").setAttribute("stroke-dashoffset",72.26);$("#pillDot").setAttribute("fill","var(--faint)")}
   // sheet live view
   if(run&&!$("#live").hidden){const left=run.endsAt-now(),tot=run.endsAt-run.startedAt;$("#count").textContent=fmtT(left);$("#progFill").style.transform="scaleX("+Math.min(1,(tot-left)/tot)+")";const g=(mine?liveWords:run.wordsStart)-run.wordsStart;$("#countSub").textContent=`${run.minutes} min sprint · ${g>=0?"+":""}${g.toLocaleString()} words so far`}
   if(openSheet===$("#sprintSheet")&&(!!run)===$("#live").hidden)paintSprintSheet();
@@ -912,9 +915,10 @@ function paintAll(){
   // rest / editing time banner
   const tl=timeLocked(),eb=editBreak(),bn=$("#tlock");bn.hidden=!(tl||eb);bn.classList.toggle("edit",eb);$("#page").classList.toggle("locked",tl);
   const want=tl?"false":"true";if(ed.getAttribute("contenteditable")!==want){ed.setAttribute("contenteditable",want);if(tl)ed.blur()}
-  if(tl||eb){$("#tlockLeft").textContent=fmtT(S.brk.until-now());$("#brkName").textContent=tl?"Rest":"Editing time";
-    $("#brkNote").textContent=tl?"Writing's paused. Critiques still work.":"Delete and revise freely"+(st.repeat?". The next sprint starts after.":".");
-    $("#hold").hidden=!tl;$("#brkGo").hidden=!eb;$("#brkGo").textContent=st.repeat?"Start next sprint":"Done editing"}
+  const ir=idleRest();
+  if(tl||eb){$("#tlockLeft").textContent=ir?"":fmtT(S.brk.until-now());$("#brkName").textContent=ir?"Resting":tl?"Rest":"Editing time";
+    $("#brkNote").textContent=ir?"Writing opens when you start a sprint. Critiques still work.":tl?"Writing's paused"+(st.idleRest?" until your next sprint":"")+". Critiques still work.":"Delete and revise freely"+(st.repeat?". The next sprint starts after.":".");
+    $("#hold").hidden=!tl||ir;$("#brkGo").hidden=!(eb||ir);$("#brkGo").textContent=ir?"Start a sprint":st.repeat?"Start next sprint":"Done editing"}
   paintBadges();
 }
 function loop(){
