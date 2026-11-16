@@ -179,6 +179,26 @@ svg{display:block}
 .ptsrow{border-top:1px solid var(--line)}
 .help{font-size:12.5px;line-height:1.4;color:var(--muted);margin:-2px 2px 10px}
 .tlock.edit{background:var(--field)}
+.flowline{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:14px 2px 10px;font:600 13px var(--ui);color:var(--muted)}
+.flowline .fs{padding:4px 10px;border-radius:9px;background:var(--field);color:var(--ink);font-variant-numeric:tabular-nums}
+.flowline .fs.sprint{background:var(--gold-fill);color:var(--gold-ink)}
+.flowline .fs.rest{background:var(--gold-soft);color:var(--gold)}
+.flowline .ar{color:var(--faint);font-weight:400}
+.flowline .rp{color:var(--gold);font-size:15px}
+.stepsList{display:grid;gap:0}
+.srow{display:flex;align-items:center;gap:8px;min-height:50px;border-top:1px solid var(--line)}
+.srow .n{width:18px;color:var(--faint);font:600 12px var(--ui);text-align:center}
+.srow .kind{min-width:76px;height:34px;padding:0 12px;border-radius:10px;background:var(--field);font:650 14px var(--ui);display:flex;align-items:center;gap:6px}
+.srow .kind.rest{background:var(--gold-soft);color:var(--gold)}
+.srow .kind svg{width:15px;height:15px}
+.srow .mins{display:flex;align-items:center;gap:6px;color:var(--muted);font-weight:500;flex:1}
+.srow .sb{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;color:var(--muted)}
+.srow .sb:active{background:var(--field)}
+.srow .sb svg{width:17px;height:17px}
+.srow.now .n{color:var(--gold)}
+.addrow{display:flex;gap:8px;padding:10px 0 12px;border-top:1px solid var(--line)}
+.addrow .chip{flex:1}
+.stepsList:empty+.addrow{border-top:0}
 .tlock .go{padding:0 14px;min-height:40px;border-radius:12px;background:var(--paper);font:620 13px var(--ui);box-shadow:0 1px 0 var(--line)}
 .pbar{flex:1;height:8px;border-radius:4px;background:var(--field);overflow:hidden}
 .pbar i{display:block;height:100%;width:0;background:var(--gold-fill);border-radius:4px;transition:width .3s var(--spring)}
@@ -436,10 +456,11 @@ body.desk .ed{-webkit-user-select:text}
     </div>
     <div class="kick">After each sprint</div>
     <div class="group">
-      <div class="row" style="padding-top:12px"><div class="seg" id="afterSeg"><i></i><button data-v="stop">Stop</button><button data-v="rest">Rest</button><button data-v="edit">Edit</button></div></div>
-      <p class="help" id="afterHelp"></p>
-      <div class="loopline" id="afterLine">For <input class="num" id="afterMin" type="number" inputmode="numeric" min="1" max="360"> min</div>
-      <div class="row" id="repeatRow"><div class="lbl">Repeat<small id="repeatHelp">Then start the next sprint by itself.</small></div><button class="sw" role="switch" id="swRepeat" aria-checked="false" aria-label="Repeat"></button></div>
+      <div class="flowline" id="flowLine" aria-hidden="true"></div>
+      <div class="stepsList" id="stepsList" role="list" aria-label="Steps after each sprint, in order"></div>
+      <div class="addrow"><button class="chip tap" data-add="edit">+ Edit</button><button class="chip tap" data-add="rest">+ Rest</button></div>
+      <p class="help"><b>Edit</b>: the edit lock lifts so you can delete and revise. <b>Rest</b>: writing is locked so you step away; critiques stay open. Tap a step's name to switch it.</p>
+      <div class="row" id="repeatRow"><div class="lbl">Repeat<small id="repeatHelp">When the last step is over, the next sprint starts by itself.</small></div><button class="sw" role="switch" id="swRepeat" aria-checked="false" aria-label="Repeat"></button></div>
       <div class="row"><div class="lbl">Rest between sprints<small>Writing stays locked whenever a sprint isn't running. Starting a sprint unlocks it. Critiques stay open.</small></div><button class="sw" role="switch" id="swIdle" aria-checked="false" aria-label="Rest between sprints"></button></div>
     </div>
   </div>
@@ -517,6 +538,8 @@ let S=(()=>{try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.docs){d.se
   if(st.mode!=="always")st.mode="sprints";
   if(S.timeLockUntil>Date.now())S.brk={kind:"rest",until:S.timeLockUntil,docId:S.lockDoc||null};
   delete S.timeLockUntil;delete S.lockDoc;st.flow2=true;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}})();
+// after-sprint steps: a list like [{k:"edit",m:5},{k:"rest",m:5}] that runs in order
+(function migrateSteps(){const st=S.settings;if(Array.isArray(st.steps))return;st.steps=(st.after==="rest"||st.after==="edit")?[{k:st.after,m:st.afterMin||5}]:[];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}})();
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast("Couldn't save: storage is full")}}
 function getHtml(id){try{return localStorage.getItem(DOCKEY+id)||""}catch(e){return ""}}
 function setHtml(id,h){try{localStorage.setItem(DOCKEY+id,h);return true}catch(e){toast("Couldn't save: storage is full");return false}}
@@ -851,15 +874,24 @@ const brkOn=k=>!!S.brk&&S.brk.kind===k&&S.brk.until>now();
 const idleRest=()=>S.settings.idleRest&&!S.sprint&&!editBreak()&&!brkOn("rest");
 const timeLocked=()=>brkOn("rest")||idleRest();
 const editBreak=()=>brkOn("edit");
-function startBreak(docId){const st=S.settings;if(st.after!=="rest"&&st.after!=="edit")return;
-  S.brk={kind:st.after,until:now()+st.afterMin*60000,docId:docId||null};save();if(st.after==="rest")ed.blur();paintAll()}
+function startStep(docId,i){const st=S.settings.steps[i];if(!st)return false;
+  S.brk={kind:st.k,until:now()+st.m*60000,docId:docId||null,idx:i};save();if(st.k==="rest")ed.blur();paintAll();if(openSheet===$("#sprintSheet"))paintSteps();return true}
+function startBreak(docId){startStep(docId,0)}
+const stepName=k=>k==="rest"?"Rest":"Editing time";
+// a step is over (natural: its time ran out or you chose to move on): run the next step, or finish the round
+function advance(natural,quietEnd){const b=S.brk;if(!b)return;const nx=S.settings.steps[(b.idx||0)+1];
+  S.brk=null;save();
+  if(nx){startStep(b.docId,(b.idx||0)+1);chime();toast(`${stepName(nx.k)}: ${nx.m} min`);notify(stepName(b.kind)+" over",`${stepName(nx.k)} for ${nx.m} min.`);return}
+  if(natural&&S.settings.repeat&&!S.sprint){if(nextSprint(b.docId))notify(stepName(b.kind)+" over",`Next sprint started: ${S.settings.minutes} min.`);return}
+  paintAll();if(!quietEnd){chime();toast(b.kind==="rest"?"Rest's over. Back to it.":"Editing time's over. Edit lock's back.");notify(stepName(b.kind)+" over",b.kind==="rest"?"Back to it.":"Edit lock's back.")}}
+function nextLabel(){const b=S.brk,nx=b&&S.settings.steps[(b.idx||0)+1];return nx?(nx.k==="rest"?"Rest now":"Edit now"):S.settings.repeat?"Start next sprint":"Done editing"}
 function endBreak(msg){S.brk=null;save();paintAll();if(msg){chime();toast(msg)}}
 function nextSprint(docId){const doc=docId&&S.docs.find(x=>x.id===docId);if(!doc)return false;if(!cur||cur.id!==doc.id){flush();openDoc(doc.id)}startSprint();toast(`Next sprint: ${S.settings.minutes} min. Go.`);return true}
-$("#brkGo").onclick=()=>{if(idleRest()){hap();openSprintSheet(false);return}const b=S.brk;if(!b)return;hap();if(S.settings.repeat){endBreak();nextSprint(b.docId)}else endBreak("Editing time ended")};
+$("#brkGo").onclick=()=>{if(idleRest()){hap();openSprintSheet(false);return}if(!S.brk)return;hap();advance(true)};
 // hold for 3 seconds to break the lock early
 (()=>{const h=$("#hold"),f=$("#holdFill");let raf=0,t0=0,lastQ=-1;
   const stop=()=>{cancelAnimationFrame(raf);raf=0;f.style.transition="transform .3s";f.style.transform="scaleX(0)";lastQ=-1};
-  const step=()=>{const p=Math.min(1,(now()-t0)/3000);f.style.transform="scaleX("+p+")";const q=Math.floor(p*6);if(q!==lastQ){lastQ=q;tick()}if(p>=1){stop();hap();endBreak("Unlocked early");return}raf=requestAnimationFrame(step)};
+  const step=()=>{const p=Math.min(1,(now()-t0)/3000);f.style.transform="scaleX("+p+")";const q=Math.floor(p*6);if(q!==lastQ){lastQ=q;tick()}if(p>=1){stop();hap();(()=>{const nx=S.brk&&S.settings.steps[(S.brk.idx||0)+1];if(nx)advance(false,true);else{advance(false,true);chime();toast("Unlocked early")}})();return}raf=requestAnimationFrame(step)};
   h.addEventListener("pointerdown",e=>{e.preventDefault();t0=now();f.style.transition="none";hap();raf=requestAnimationFrame(step)});
   ["pointerup","pointerleave","pointercancel"].forEach(ev=>h.addEventListener(ev,()=>{if(raf)stop()}));
   h.addEventListener("contextmenu",e=>e.preventDefault())})();
@@ -874,8 +906,8 @@ function finishSprint(natural){const sp=S.sprint;if(!sp)return;flush();
   S.sprint=null;save();
   if(natural){bell();hap()}else thud();
   const g=wEnd-sp.wordsStart;toast((natural?"Sprint done":"Sprint ended")+" · "+(g>=0?"+":"")+g.toLocaleString()+" words");
-  if(natural)notify("Sprint done",(g>=0?"+":"")+g.toLocaleString()+" words on "+(d?d.title||"Untitled":"your page")+({rest:`. Rest for ${S.settings.afterMin} min.`,edit:`. Editing time for ${S.settings.afterMin} min.`}[S.settings.after]||"."));
-  startBreak(sp.docId);paintAll();refreshWords();if(!$("#shelf").hidden)renderShelf()}
+  if(natural)notify("Sprint done",(g>=0?"+":"")+g.toLocaleString()+" words on "+(d?d.title||"Untitled":"your page")+(S.settings.steps[0]?`. ${stepName(S.settings.steps[0].k)} for ${S.settings.steps[0].m} min.`:"."));
+  if(!startStep(sp.docId,0)&&natural&&S.settings.repeat)setTimeout(()=>{if(!S.sprint&&!S.brk)nextSprint(sp.docId)},1500);paintAll();refreshWords();if(!$("#shelf").hidden)renderShelf()}
 $("#startBtn").onclick=startSprint;
 $("#endBtn").onclick=()=>{const b=$("#endBtn");if(b.dataset.sure){delete b.dataset.sure;b.textContent="End sprint";hideSheet();finishSprint(false)}else{b.dataset.sure=1;b.textContent="Tap to confirm";hap();setTimeout(()=>{delete b.dataset.sure;b.textContent="End sprint"},2500)}};
 $("#plus5").onclick=()=>{if(!S.sprint)return;S.sprint.endsAt+=5*60000;S.sprint.minutes+=5;save();tick();hap();paintAll()};
@@ -905,7 +937,7 @@ function paintDial(){const m=dialVal,frac=(m%60)/60,full=m>=60&&m%60===0;
   const hrs=Math.floor((m-(full?1:0))/60);let dots="";for(let i=0;i<Math.min(hrs,8);i++)dots+=`<circle cx="${120-(Math.min(hrs,8)-1)*6+i*12}" cy="168" r="3.2" fill="var(--gold-fill)"/>`;$("#hourDots").innerHTML=dots;
   if(document.activeElement!==$("#dialNum"))$("#dialNum").value=m;
   document.querySelectorAll("#chips .chip").forEach(c=>c.classList.toggle("on",+c.dataset.m===m))}
-function setMinutes(m,quiet){m=Math.max(1,Math.min(600,Math.round(m)||1));if(m!==dialVal&&!quiet){tick()}dialVal=m;S.settings.minutes=m;save();paintDial()}
+function setMinutes(m,quiet){m=Math.max(1,Math.min(600,Math.round(m)||1));if(m!==dialVal&&!quiet){tick()}dialVal=m;S.settings.minutes=m;save();paintDial();if(S.settings.steps)paintSteps()}
 (()=>{const d=$("#dial");let last=null,acc=0,lastHap=0;
   const ang=e=>{const r=d.getBoundingClientRect();return Math.atan2(e.clientX-(r.left+r.width/2),-(e.clientY-(r.top+r.height/2)))};
   d.addEventListener("pointerdown",e=>{if(e.target.closest("input"))return;e.preventDefault();d.setPointerCapture(e.pointerId);last=ang(e);acc=dialVal;d.classList.add("dragging");hap();$("#dialNum").blur()});
@@ -920,18 +952,32 @@ function paintSprintSheet(){const st=S.settings,run=!!S.sprint;
   $("#setup").hidden=run;$("#live").hidden=!run;$("#sprintH").textContent=run?"Sprinting":"Sprint";
   dialVal=st.minutes;paintDial();
   sw($("#swEdit"),st.editLock,v=>{st.editLock=v;save();paintLocks();paintAll()});
-  sw($("#swRepeat"),st.repeat,v=>{st.repeat=v;save();paintLocks()});
+  sw($("#swRepeat"),st.repeat,v=>{st.repeat=v;save();paintSteps()});
   sw($("#swIdle"),st.idleRest,v=>{st.idleRest=v;save();paintAll();toast(v?"Writing is locked between sprints":"Writing is open between sprints")});
-  $("#ptsMax").value=st.ptsMax;$("#afterMin").value=st.afterMin;paintPts();
-  paintLocks();requestAnimationFrame(()=>{seg($("#modeSeg"),st.mode,v=>{st.mode=v;save();paintLocks();paintAll()});seg($("#afterSeg"),st.after,v=>{st.after=v;save();paintLocks()})})}
-const AFTER_HELP={stop:"The sprint just ends.",rest:"Writing is locked for a while, so you step away. Critiques stay open. Hold to unlock early.",edit:"The edit lock lifts so you can delete and revise. Then it comes back with the next sprint."};
-function paintLocks(){const st=S.settings;$("#editOpts").hidden=!st.editLock;
-  $("#afterHelp").textContent=AFTER_HELP[st.after]+(st.after==="edit"&&!st.editLock?" Your edit lock is off, so this is just a timed break.":"");
-  $("#afterLine").hidden=st.after==="stop";$("#repeatRow").hidden=st.after==="stop";
-  $("#repeatHelp").textContent=st.after==="rest"?"When the rest is over, the next sprint starts by itself.":"When editing time is over, the next sprint starts by itself.";
-  requestAnimationFrame(()=>{if($("#modeSeg")._paint&&st.editLock)$("#modeSeg")._paint(st.mode);if($("#afterSeg")._paint)$("#afterSeg")._paint(st.after)})}
+  $("#ptsMax").value=st.ptsMax;paintPts();
+  paintLocks();requestAnimationFrame(()=>{seg($("#modeSeg"),st.mode,v=>{st.mode=v;save();paintLocks();paintAll()})})}
+const ICON={edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5l4 4M4 20l1-5L15.5 4.5a2.1 2.1 0 0 1 3 0l1 1a2.1 2.1 0 0 1 0 3L9 19z"/></svg>',rest:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z"/></svg>'};
+function paintSteps(){const st=S.settings,list=st.steps,cur_i=S.brk?S.brk.idx:-1;
+  if($("#stepsList").contains(document.activeElement)&&document.activeElement.tagName==="INPUT")return;
+  $("#stepsList").innerHTML=list.map((x,i)=>`<div class="srow${i===cur_i?" now":""}" role="listitem"><span class="n">${i+1}</span><button class="kind tap ${x.k}" data-k="${i}" aria-label="${x.k==="rest"?"Rest":"Edit"}, tap to switch">${ICON[x.k]}${x.k==="rest"?"Rest":"Edit"}</button><span class="mins"><input class="num" data-m="${i}" type="number" inputmode="numeric" min="1" max="360" value="${x.m}" aria-label="Minutes">min</span>${i?`<button class="sb" data-up="${i}" aria-label="Move up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>`:'<span style="width:34px"></span>'}<button class="sb" data-x="${i}" aria-label="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`).join("");
+  $(".addrow").hidden=list.length>=6;
+  let f=`<span class="fs sprint">Sprint ${st.minutes}</span>`;list.forEach(x=>{f+=`<span class="ar">→</span><span class="fs ${x.k}">${x.k==="rest"?"Rest":"Edit"} ${x.m}</span>`});
+  f+=st.repeat?`<span class="ar">→</span><span class="rp" title="Repeats">↻</span>`:(list.length?"":`<span class="ar">then stop</span>`);$("#flowLine").innerHTML=f;
+  $("#repeatHelp").textContent=list.length?"When the last step is over, the next sprint starts by itself.":"The next sprint starts as soon as one ends."}
+function paintLocks(){const st=S.settings;$("#editOpts").hidden=!st.editLock;paintSteps();
+  requestAnimationFrame(()=>{if($("#modeSeg")._paint&&st.editLock)$("#modeSeg")._paint(st.mode)})}
+$("#stepsList").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const L=S.settings.steps;
+  if(b.dataset.k!=null){const x=L[+b.dataset.k];x.k=x.k==="rest"?"edit":"rest";if(x.k==="edit"&&!S.settings.editLock)toast("Your edit lock is off, so Edit is just a timed break.")}
+  else if(b.dataset.up!=null){const i=+b.dataset.up;[L[i-1],L[i]]=[L[i],L[i-1]]}
+  else if(b.dataset.x!=null)L.splice(+b.dataset.x,1);
+  save();tick();hap();paintSteps()});
+$("#stepsList").addEventListener("change",e=>{const t=e.target.closest("[data-m]");if(!t)return;const v=Math.max(1,Math.min(360,Math.round(+t.value)||5));S.settings.steps[+t.dataset.m].m=v;t.value=v;save();tick();t.blur();paintSteps()});
+$("#stepsList").addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.matches("input"))e.target.blur()});
+$("#stepsList").addEventListener("focusout",()=>setTimeout(()=>{if(!$("#stepsList").contains(document.activeElement))paintSteps()},0));
+document.querySelector(".addrow").addEventListener("click",e=>{const b=e.target.closest("[data-add]");if(!b)return;S.settings.steps.push({k:b.dataset.add,m:5});save();tick();hap();paintSteps();
+  if(b.dataset.add==="edit"&&!S.settings.editLock)toast("Your edit lock is off, so Edit is just a timed break.")});
 const numIn=(el,key,lo,hi,after)=>el.addEventListener("change",()=>{const v=Math.max(lo,Math.min(hi,Math.round(+el.value)||lo));el.value=v;S.settings[key]=v;save();tick();after&&after()});
-numIn($("#ptsMax"),"ptsMax",0,9999,()=>{S.pts=Math.min(S.pts,S.settings.ptsMax);save();paintPts()});numIn($("#afterMin"),"afterMin",1,360);
+numIn($("#ptsMax"),"ptsMax",0,9999,()=>{S.pts=Math.min(S.pts,S.settings.ptsMax);save();paintPts()});
 document.querySelectorAll(".num").forEach(n=>n.addEventListener("keydown",e=>{if(e.key==="Enter")n.blur()}));
 
 /* ======================= critiques ======================= */
@@ -986,17 +1032,16 @@ function paintAll(){
   const want=tl?"false":"true";if(ed.getAttribute("contenteditable")!==want){ed.setAttribute("contenteditable",want);if(tl)ed.blur()}
   const ir=idleRest();
   if(tl||eb){$("#tlockLeft").textContent=ir?"":fmtT(S.brk.until-now());$("#brkName").textContent=ir?"Resting":tl?"Rest":"Editing time";
-    $("#brkNote").textContent=ir?"Writing opens when you start a sprint. Critiques still work.":tl?"Writing's paused"+(st.idleRest?" until your next sprint":"")+". Critiques still work.":"Delete and revise freely"+(st.repeat?". The next sprint starts after.":".");
-    $("#hold").hidden=!tl||ir;$("#brkGo").hidden=!(eb||ir);$("#brkGo").textContent=ir?"Start a sprint":st.repeat?"Start next sprint":"Done editing"}
+    const nx=S.brk&&st.steps[(S.brk.idx||0)+1],then=nx?` Then ${nx.k==="rest"?"rest":"edit"} for ${nx.m} min.`:st.repeat?" Then the next sprint.":"";
+    $("#brkNote").textContent=ir?"Writing opens when you start a sprint. Critiques still work.":tl?"Writing's paused. Critiques still work."+then:"Delete and revise freely."+then;
+    $("#hold").hidden=!tl||ir;$("#brkGo").hidden=!(eb||ir);$("#brkGo").textContent=ir?"Start a sprint":nextLabel()}
   paintBadges();
 }
 function loop(){
   if(S.sprint&&now()>=S.sprint.endsAt)finishSprint(true);
   if(S.brk&&S.brk.until<=now()){
-    // repeat, but not if Folio was closed long after the break ran out
-    const b=S.brk,fresh=now()-b.until<120000,what=b.kind==="rest"?"Rest's over":"Editing time's over";
-    if(S.settings.repeat&&fresh&&!S.sprint){endBreak();if(nextSprint(b.docId))notify(what,`Next sprint started: ${S.settings.minutes} min.`)}
-    else{endBreak(b.kind==="rest"?"Rest's over. Back to it.":"Editing time's over. Edit lock's back.");notify(what,b.kind==="rest"?"Back to it.":"Edit lock's back.")}}
+    // carry on through the steps, but not if Folio was closed long after the step ran out
+    if(now()-S.brk.until<120000)advance(true);else endBreak()}
   if(!$("#editor").hidden)paintAll();else if(S.sprint)paintRunning();
 }
 setInterval(loop,250);
