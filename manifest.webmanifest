@@ -1,0 +1,14 @@
+{
+  "name": "Folio",
+  "short_name": "Folio",
+  "description": "A small .docx editor with writing sprints, critiques, a time lock and an edit lock",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3efe8",
+  "theme_color": "#f3efe8",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
+}
