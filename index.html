@@ -454,6 +454,7 @@ body.desk .ed{-webkit-user-select:text}
         <div class="loopline" id="ptsLine" hidden><span class="pbar"><i id="ptsFill"></i></span><b id="ptsVal" class="g"></b></div>
         <div class="row ptsrow"><div class="lbl">Movement points<small>Earned the same way, up to this max. Each arrow, Home, End or Page Up/Down press spends one. Tapping somewhere costs what it would take with the arrow keys: one per line, then one per character. 0 turns them off.</small></div><input class="num" id="mMax" type="number" inputmode="numeric" min="0" max="9999" aria-label="Most movement points"></div>
         <div class="loopline" id="mLine" hidden><span class="pbar"><i id="mFill"></i></span><b id="mVal" class="g"></b></div>
+        <div class="row" id="mClickRow" hidden style="border-top:0;padding-top:0"><div class="lbl">Clicking costs too<small>Tapping or clicking somewhere new costs what the move would take with the arrow keys. Off: only keys cost.</small></div><button class="sw" role="switch" id="swMClick" aria-checked="true" aria-label="Clicking costs too"></button></div>
         <div class="row" id="mBackRow" hidden style="border-top:0;padding-top:0"><div class="lbl">Only moving back costs<small>Moving forward is always free: Right, Down, End, Page Down, or tapping further on.</small></div><button class="sw" role="switch" id="swMBack" aria-checked="false" aria-label="Only moving back costs"></button></div>
       </div>
     </div>
@@ -530,7 +531,7 @@ body.desk .ed{-webkit-user-select:text}
 "use strict";
 /* ======================= storage ======================= */
 const KEY="folio.v1", DOCKEY="folio.doc.";
-const DEF_SETTINGS={minutes:25,editLock:false,mode:"sprints",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0,mMax:0,mBack:false,autoRestart:false,idleRest:false,pages:false,after:"stop",afterMin:5,repeat:false};
+const DEF_SETTINGS={minutes:25,editLock:false,mode:"sprints",loopLock:10,loopFree:3,timeLock:false,timeLockMin:5,sound:true,haptics:true,theme:"auto",fs:19,lockTip:false,ptsMax:0,mMax:0,mBack:false,mClick:true,autoRestart:false,idleRest:false,pages:false,after:"stop",afterMin:5,repeat:false};
 function fresh(){return {docs:[],critiques:[],sprints:[],settings:{...DEF_SETTINGS},sprint:null,timeLockUntil:0,pts:0}}
 let S=(()=>{try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.docs){d.settings={...DEF_SETTINGS,...d.settings};return {...fresh(),...d}}}catch(e){}return fresh()})();
 // one-time move from the old controls (Loop / Time lock / Then restart) to Edit lock + After each sprint
@@ -849,7 +850,8 @@ function arrowDist(a,b,cap){
   if(dir&&s.modify)for(let i=0;i<20000&&steps<=cap;i++){const before=cur;s.modify("move",dir,"line");steps++;cur=top();
     if(Math.abs(cur-tb.top)<=3||cur===before||(dir==="forward"?cur>tb.top+3:cur<tb.top-3))break}
   const q=s.getRangeAt(0);return steps+Math.abs(textIdx(q.startContainer,q.startOffset)-textIdx(b.node,b.off))}
-function checkMove(){const s=getSelection(),c=selNow();if(!c||!lastSel||!lastSel.startContainer.isConnected||sameSel(c,lastSel)){if(c)lastSel=c;return}
+function checkMove(){if(S.settings.mClick===false){const c=selNow();if(c)lastSel=c;return} // clicks are free
+  const s=getSelection(),c=selNow();if(!c||!lastSel||!lastSel.startContainer.isConnected||sameSel(c,lastSel)){if(c)lastSel=c;return}
   const A={node:s.anchorNode,off:s.anchorOffset},F={node:s.focusNode,off:s.focusOffset},from={node:lastSel.endContainer,off:lastSel.endOffset};
   if(S.settings.mBack){const o=document.createRange();o.setStart(from.node,from.off);let back=false;try{back=o.comparePoint(A.node,A.off)<0||o.comparePoint(F.node,F.off)<0}catch(e){back=true}
     if(!back){lastSel=c;return}} // only back: a tap further on is free
@@ -879,7 +881,7 @@ function short(n){if(ptsOn()&&S.pts>0&&n>S.pts)toast(`That edit needs ${n} point
 function spend(n){n=n||1;if(!ptsOn()||S.pts<n)return false;S.pts-=n;save();tone(1500,.05,.04,"triangle");if(S.pts===0)toast("Out of edit points. Keep writing to earn more.");paintPts();return true}
 function paintPts(){const on=ptsOn(),m=S.settings.ptsMax;
   if($("#ptsLine")){$("#ptsLine").hidden=!on;if(on){$("#ptsFill").style.width=Math.round(S.pts/m*100)+"%";$("#ptsVal").textContent=S.pts+" / "+m}}
-  const mo=mOn(),mm=S.settings.mMax;if($("#mBackRow"))$("#mBackRow").hidden=!mo;if($("#mLine")){$("#mLine").hidden=!mo;if(mo){$("#mFill").style.width=Math.round((S.mpts||0)/mm*100)+"%";$("#mVal").textContent=(S.mpts||0)+" / "+mm}}
+  const mo=mOn(),mm=S.settings.mMax;if($("#mBackRow"))$("#mBackRow").hidden=!mo;if($("#mClickRow"))$("#mClickRow").hidden=!mo;if($("#mLine")){$("#mLine").hidden=!mo;if(mo){$("#mFill").style.width=Math.round((S.mpts||0)/mm*100)+"%";$("#mVal").textContent=(S.mpts||0)+" / "+mm}}
   paintAll()}
 const charsIn=t=>t==="insertParagraph"||t==="insertLineBreak"?1:0;
 
@@ -1006,6 +1008,7 @@ function paintSprintSheet(){const st=S.settings,run=!!S.sprint;
   $("#setup").hidden=run;$("#live").hidden=!run;$("#sprintH").textContent=run?"Sprinting":"Sprint";
   dialVal=st.minutes;paintDial();
   sw($("#swEdit"),st.editLock,v=>{st.editLock=v;save();paintLocks();paintAll()});
+  sw($("#swMClick"),st.mClick!==false,v=>{st.mClick=v;save();toast(v?"Clicking somewhere new costs movement points.":"Clicking is free. Only keys cost movement points.")});
   sw($("#swMBack"),st.mBack,v=>{st.mBack=v;save();toast(v?"Moving forward is free. Only moving back costs points.":"Every move costs points.")});
   sw($("#swRepeat"),st.repeat,v=>{st.repeat=v;save();paintSteps()});
   sw($("#swIdle"),st.idleRest,v=>{st.idleRest=v;save();paintAll();toast(v?"Writing is locked between sprints":"Writing is open between sprints")});
